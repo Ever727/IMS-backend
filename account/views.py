@@ -20,7 +20,7 @@ def login(request:HttpRequest):
                     err_msg="Missing or error type of [password]")
     
     if User.objects.filter(userId=userId).exists() is False:
-        return request_failed(-1,"用户不存在",404)
+        return request_failed(-1,"用户 ID 不存在，请重试",404)
     user = User.objects.get(userId=userId)
     if user.isDeleted:
         return request_failed(-1,"用户已注销",404)
@@ -51,7 +51,7 @@ def register(request:HttpRequest):
         return request_failed(-2,"用户名格式错误",400)
    
     if User.objects.filter(userId=userId).exists():
-        return request_failed(-1,"用户已存在",400)
+        return request_failed(-2,"用户已存在",400)
     
     user = User(userId=userId, password=make_password(password), userName=userName)
     user.save()
@@ -101,8 +101,10 @@ def delete(request:HttpRequest):
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1,"用户不存在",404)
     user = User.objects.get(userId=userId)
+    if user.isDeleted:
+        return request_failed(-1,"用户已注销",404)
     if check_password(password,user.password) == False:
-        return request_failed(-3,"密码错误",401)
+        return request_failed(-3,"密码错误，请重试",401)
     
     user.isDeleted = True
     user.save()
