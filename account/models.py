@@ -1,10 +1,11 @@
 from django.db import models
 from utils.utils_time import get_timestamp
 
+
 # Create your models here.
 class User(models.Model):
-    #userId: str，唯一主键
-    #userName: str，长度不超过16，不唯一
+    # userId: str，唯一主键
+    # userName: str，长度不超过16，不唯一
     # password: str，   长度不超过16，加密
     # registerTime: 时间戳
     # loginTime: 时间戳
@@ -26,23 +27,20 @@ class User(models.Model):
     isDeleted = models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'user'
-        
+        db_table = "user"
 
     def serialize(self):
         return {
-            'userId': self.userId,
-            'userName': self.userName,
-            'email': self.email,
-            'phoneNumber': self.phoneNumber,
-            'avatarUrl': self.avatarUrl,
-            'registerTime': self.registerTime,
-            'loginTime': self.loginTime,
-            'status': self.status,
-            'isDeleted': self.isDeleted
+            "userId": self.userId,
+            "userName": self.userName,
+            "email": self.email,
+            "phoneNumber": self.phoneNumber,
+            "avatarUrl": self.avatarUrl,
+            "registerTime": self.registerTime,
+            "loginTime": self.loginTime,
+            "status": self.status,
+            "isDeleted": self.isDeleted,
         }
 
     def __str__(self):
         return self.userName
-    
-
