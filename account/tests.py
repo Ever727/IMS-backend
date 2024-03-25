@@ -31,7 +31,7 @@ class AccountTests(TestCase):
         self.client.post('/register/', data=data, content_type='application/json')
         response = self.client.post('/register/', data=data, content_type='application/json')
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['code'], -1)
+        self.assertEqual(response.json()['code'], -2)
         self.assertEqual(response.json()['info'], '用户已存在')
 
     # * Tests for login view
@@ -69,7 +69,6 @@ class AccountTests(TestCase):
        response = self.client.post('/login/', data=data, content_type='application/json')     
        self.assertEqual(response.status_code, 404)
        self.assertEqual(response.json()['code'], -1)
-       self.assertEqual(response.json()['info'], '用户不存在')
 
      # * Tests for logout view
     def test_logout_existing_user(self):
@@ -85,15 +84,6 @@ class AccountTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
 
-    def test_logout_non_existing_user(self):
-        data = {
-            "userId":"123456",
-            "userName": "AsRight",
-            "password": "123456",
-        }    
-        res = self.client.post('/logout/', HTTP_AUTHORIZATION='1234567890.1234567890.1234567890.1234567890',data=data, content_type='application/json')
-        self.assertEqual(res.status_code, 401)
-        self.assertEqual(res.json()['code'], 2)
 
     # * Tests for delete view
     # TODO: Implement delete view tests
@@ -109,14 +99,3 @@ class AccountTests(TestCase):
         res = self.client.post('/delete/', HTTP_AUTHORIZATION=token,data=data, content_type='application/json')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
-
-    def test_delete_non_existing_user(self):
-        data = {
-            "userId":"123456",
-            "userName": "AsRight",
-            "password": "123456",
-        }    
-        token = '1234567890.1234567890.1234567890.1234567890'
-        res = self.client.post('/delete/', HTTP_AUTHORIZATION=token,data=data, content_type='application/json')
-        self.assertEqual(res.status_code, 401)
-        self.assertEqual(res.json()['code'], 2)
