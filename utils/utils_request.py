@@ -9,11 +9,18 @@ def request_failed(code, info, status_code=400):
 
 
 def request_success(data={}):
-    return JsonResponse({
-        "code": 0,
-        "info": "Succeed",
-        **data
-    })
+    if  isinstance(data, dict):
+        return JsonResponse({
+            "code": 0,
+            "info": "Succeed",
+            **data
+        })
+    elif isinstance(data, list):
+        return JsonResponse({
+            "code": 0,
+            "info": "Succeed",
+            "data": data
+        })
 
 
 def return_field(obj_dict, field_list):
