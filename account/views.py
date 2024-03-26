@@ -20,10 +20,10 @@ def login(request:HttpRequest):
                     err_msg="Missing or error type of [password]")
     
     if User.objects.filter(userId=userId).exists() is False:
-        return request_failed(-1,"用户不存在",404)
+        return request_failed(-1,"ID错误",404)
     user = User.objects.get(userId=userId)
     if user.isDeleted:
-        return request_failed(-1,"用户已注销",404)
+        return request_failed(-1,"ID错误",404)
     if check_password(password,user.password) == False:
         return request_failed(-3,"密码错误",401)
     user.status = True
@@ -51,7 +51,7 @@ def register(request:HttpRequest):
         return request_failed(-2,"用户名格式错误",400)
    
     if User.objects.filter(userId=userId).exists():
-        return request_failed(-1,"用户已存在",400)
+        return request_failed(-2,"用户已存在",400)
     
     user = User(userId=userId, password=make_password(password), userName=userName)
     user.save()
@@ -69,10 +69,8 @@ def logout(request:HttpRequest):
     body = json.loads(request.body.decode("utf-8"))
     payload = check_jwt_token(token)
     
-    if payload is None:
-        return request_failed(2, "JWT 验证失败", 401)
-    if payload["userId"] != userId:
-        return request_failed(3, "没有操作权限", 403)
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
     
     user = User.objects.get(userId=userId)
     user.loginTime = get_timestamp()
@@ -93,16 +91,16 @@ def delete(request:HttpRequest):
     password = require(body, "password", "string",
                        err_msg="Missing or error type of [password]")
     
-    if payload is None:
-        return request_failed(2, "JWT 验证失败", 401)
-    if payload["userId"] != userId:
-        return request_failed(3, "没有操作权限", 403)
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
 
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1,"用户不存在",404)
     user = User.objects.get(userId=userId)
+    if user.isDeleted:
+        return request_failed(-1,"用户已注销",404)
     if check_password(password,user.password) == False:
-        return request_failed(-3,"密码错误",401)
+        return request_failed(-3,"密码错误，请重试",401)
     
     user.isDeleted = True
     user.save()
