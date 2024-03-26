@@ -6,7 +6,7 @@ import json
 import base64
 from typing import Optional
 
-SALT = ("thgiRsATTAsRight").encode("utf-8")
+SALT = ("thgiRsATTAsRight" + datetime.datetime.now().strftime("%Y%m%d%H%M")).encode("utf-8")
 EXPIRE_IN_SECONDS = 60 * 60 * 24 * 1  # 1 day
 ALT_CHARS = "-_".encode("utf-8")
 
