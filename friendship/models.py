@@ -18,7 +18,7 @@ class FriendshipRequest(models.Model):
     senderId = models.CharField(max_length=16)
     receiverId = models.CharField(max_length=16)
     sendTime = models.FloatField(default=get_timestamp)
-    content = models.CharField(max_length=200)
+    message = models.CharField(max_length=200)
     status = models.BooleanField(default=False)
 
     class Meta:
