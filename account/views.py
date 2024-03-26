@@ -94,7 +94,6 @@ def delete(request:HttpRequest):
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
 
-
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1,"用户不存在",404)
     user = User.objects.get(userId=userId)
@@ -106,3 +105,28 @@ def delete(request:HttpRequest):
     user.isDeleted = True
     user.save()
     return request_success(data={"url":"/login"})
+
+def search_user(request:HttpRequest, userId:str):
+    if request.method != 'POST':
+        return BAD_METHOD
+    
+    body = json.loads ( request.body.decode('utf-8'))
+    token = request.headers.get('Authorization')
+    payload = check_jwt_token(token)
+    searchName = require(body,"searchName", "string",
+                     err_msg="Missing or error type of [searchId]")
+
+    
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+    
+    users = User.objects.filter(userName=searchName).order_by("userId")
+    userList = []
+    for user in users:
+        userList.append({
+            "id": user.userId,
+            "name": user.userName,
+            "avatar": user.avatarUrl
+        })
+    
+    return request_success(userList)
