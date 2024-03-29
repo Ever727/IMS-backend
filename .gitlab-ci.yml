@@ -22,7 +22,7 @@ unit-test:
   before_script:
     - pip install -r requirements.txt
   script:
-    - python manage.py makemigrations account friendship
+    - python manage.py makemigrations account friendship chat
     - python manage.py migrate
     - ./test.sh
   after_script:

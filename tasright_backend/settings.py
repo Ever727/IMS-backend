@@ -33,6 +33,8 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
+    'chat',
     'account',
     'friendship',
     'django.contrib.admin',
