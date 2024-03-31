@@ -7,8 +7,8 @@ class AccountTests(TestCase):
     
     def setUp(self):
         self.data = {
-            "userId":"123456",
-            "userName": "TAsRight",
+            "userId":"bob",
+            "userName": "bob",
             "password": "123456",
         }
         self.newData = {
@@ -22,6 +22,11 @@ class AccountTests(TestCase):
         data = self.data.copy()
         data['password'] = make_password('123456')
         self.user = User.objects.create(**data)
+
+    def login_for_test(self,data):
+        response = self.client.post(self.loginUrl, data=data, content_type=self.content_type)
+        token = response.json()['token']
+        return token
 
     # ! Test section
     # * Tests for register view
@@ -66,18 +71,31 @@ class AccountTests(TestCase):
 
      # * Tests for logout view
     def test_logout_logined_user(self):
-        res = self.client.post(self.loginUrl, data=self.data, content_type=self.content_type)
-        token = res.json()['token']
+        token = self.login_for_test(self.data)
         res = self.client.post('/logout/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
 
-
     # * Tests for delete view
     # TODO: Implement delete view tests
     def test_delete_existing_user(self):
-        res = self.client.post(self.loginUrl, data=self.data, content_type=self.content_type)
-        token = res.json()['token']
-        res = self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()['code'], 0)
+        token = self.login_for_test(self.data)
+        response = self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+
+    def test_login_delete_user(self):    
+        token = self.login_for_test(self.data)
+        self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
+        response = self.client.post(self.loginUrl, data=self.data, content_type=self.content_type)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], -1)
+        self.assertEqual(response.json()['info'], 'ID错误')
+
+    def test_register_delete_user(self):
+       token = self.login_for_test(self.data)
+       self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
+       response = self.client.post(self.registerUrl, data=self.data, content_type=self.content_type)
+       self.assertEqual(response.status_code, 400)
+       self.assertEqual(response.json()['code'], -2)
+       self.assertEqual(response.json()['info'], '用户已存在')
