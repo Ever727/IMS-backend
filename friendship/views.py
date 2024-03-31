@@ -36,7 +36,7 @@ def add_friend(request:HttpRequest) -> HttpResponse:
         if Friendship.objects.get(userId=searchId, friendId=userId).status == True:
             return request_failed(-4, "已经是好友", 403)
     if FriendshipRequest.objects.filter(senderId=userId, receiverId=searchId).exists():
-        friendshipRequest = FriendshipRequest.objects.get(senderId=userId, receiverId=searchId)
+        friendshipRequest = FriendshipRequest.objects.filter(senderId=userId, receiverId=searchId).latest("sendTime")
         if get_timestamp() - friendshipRequest.sendTime < 60 * 60:
             return request_failed(-4, "发送申请过于频繁", 403)
         
@@ -97,13 +97,23 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
     friendshipRequest.status = 1
     friendshipRequest.save()
     
-    friendship = Friendship(userId=receiverId, friendId=senderId)
-    friendship.save()
-    
-    friendship = Friendship(userId=senderId, friendId=receiverId)
-    friendship.save()
+    if Friendship.objects.filter(userId=receiverId, friendId=senderId).exists() is True:
+        friendship = Friendship.objects.get(userId=receiverId, friendId=senderId)
+        friendship.status = True
+        friendship.save()
 
-    return request_success({"message": "接收成功"})
+        friendship = Friendship.objects.get(userId=senderId, friendId=receiverId)
+        friendship.status = True
+        friendship.save()
+    else:
+        friendship = Friendship(userId=receiverId, friendId=senderId)
+        friendship.save()
+
+        friendship = Friendship(userId=senderId, friendId=receiverId)
+        friendship.save()
+    
+    return request_success({"message": "接受成功"})
+
 
 # 从数据库中筛选出自己的好友列表，返回一个list
 def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
