@@ -1,10 +1,11 @@
 from django.db import models
 from utils.utils_time import get_timestamp
 
+
 # Create your models here.
 class User(models.Model):
-    #userId: str，唯一主键
-    #userName: str，长度不超过16，不唯一
+    # userId: str，唯一主键
+    # userName: str，长度不超过16，不唯一
     # password: str，   长度不超过16，加密
     # registerTime: 时间戳
     # loginTime: 时间戳
