@@ -29,7 +29,14 @@ def login(request:HttpRequest):
         return request_failed(-3,"密码错误",401)
     user.status = True
     user.save()
-    return request_success(data={"url":f"/chat/{user.userId}","userId": user.userId, "userName": user.userName,"token":generate_jwt_token(user.userId)})
+    data = {
+        "url": f"/chat/{user.userId}",
+        "userId": user.userId,
+        "userName": user.userName,
+        "avatarUrl": user.avatarUrl,
+        "token": generate_jwt_token(user.userId)
+    }
+    return request_success(data=data)
    
 def register(request:HttpRequest):
     if request.method != 'POST':
