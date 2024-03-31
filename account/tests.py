@@ -142,9 +142,10 @@ class AccountTests(TestCase):
         token = self.login_for_test(self.data)
         self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
         response = self.client.get(f'/profile/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, content_type=self.content_type)
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()['code'], -1)
-        self.assertEqual(response.json()['info'], '用户已注销')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['userId'], 'Bob')
+        self.assertEqual(response.json()['userName'], 'Bob')
 
 
     def test_update_profile_existing_user(self):
