@@ -129,3 +129,63 @@ def search_user(request:HttpRequest, userId:str):
     }
 
     return request_success(data=data)
+
+def profile(request: HttpRequest, userId: str):
+    if request.method != "GET":
+        return BAD_METHOD
+
+    if User.objects.filter(userId=userId).exists() is False:
+        return request_failed(-1, "用户不存在", 404)
+    user = User.objects.get(userId=userId)
+    if user.isDeleted:
+        return request_failed(-1, "用户已注销", 404)
+
+    return request_success(
+        data={
+            "userId": user.userId,
+            "userName": user.userName,
+            "avatar": user.avatarUrl,
+            "email": user.email,
+            "phoneNumber": user.phoneNumber,
+        }
+    )
+
+
+def update_profile(request: HttpRequest, userId: str):
+    if request.method != "POST":
+        return BAD_METHOD
+
+    token = request.headers.get("Authorization")
+    body = json.loads(request.body.decode("utf-8"))
+    password = require(
+        body, "password", "string", err_msg="Missing or error type of [password]"
+    )
+    payload = check_jwt_token(token)
+
+    if payload is None:
+        return request_failed(-3, "JWT 验证失败", 401)
+    if payload["userId"] != userId:
+        return request_failed(-4, "没有操作权限", 403)
+
+    if User.objects.filter(userId=userId).exists() is False:
+        return request_failed(-1, "用户不存在", 404)
+    user = User.objects.get(userId=userId)
+
+    if user.isDeleted:
+        return request_failed(-1, "用户已注销", 404)
+    if check_password(password, user.password) == False:
+        return request_failed(-3, "密码错误，请重试", 401)
+
+    if "newName" in body:
+        user.userName = body["newName"]
+    if "newPassword" in body:
+        user.password = make_password(body["newPassword"])
+    if "newEmail" in body:
+        user.email = body["newEmail"]
+    if "newPhoneNumber" in body:
+        user.phoneNumber = body["newPhoneNumber"]
+    if "newAvatarUrl" in body:
+        user.avatarUrl = body["newAvatarUrl"]
+    user.save()
+
+    return request_success(data={"url": f"/profile/{userId}"})
