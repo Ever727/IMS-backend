@@ -7,12 +7,12 @@ class AccountTests(TestCase):
     
     def setUp(self):
         self.data = {
-            "userId":"bob",
-            "userName": "bob",
+            "userId":"Bob",
+            "userName": "Bob",
             "password": "123456",
         }
         self.newData = {
-            "userId":"alice",
+            "userId":"Alice",
             "userName": "Alice",
             "password": "123456",
         }
@@ -22,6 +22,7 @@ class AccountTests(TestCase):
         data = self.data.copy()
         data['password'] = make_password('123456')
         self.user = User.objects.create(**data)
+
 
     def login_for_test(self,data):
         response = self.client.post(self.loginUrl, data=data, content_type=self.content_type)
@@ -77,7 +78,6 @@ class AccountTests(TestCase):
         self.assertEqual(res.json()['code'], 0)
 
     # * Tests for delete view
-    # TODO: Implement delete view tests
     def test_delete_existing_user(self):
         token = self.login_for_test(self.data)
         response = self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
@@ -99,3 +99,26 @@ class AccountTests(TestCase):
        self.assertEqual(response.status_code, 400)
        self.assertEqual(response.json()['code'], -2)
        self.assertEqual(response.json()['info'], '用户已存在')
+
+    # * Tests for search_user view
+    def test_search_user_existing_user(self):
+        self.client.post(self.registerUrl, data=self.newData, content_type=self.content_type)
+        searchData = {
+            "searchId":self.newData["userId"]
+        }
+        token = self.login_for_test(self.data)
+        response = self.client.post(f'/search/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, data=searchData, content_type=self.content_type)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['id'], 'Alice')
+        self.assertEqual(response.json()['name'], 'Alice')
+
+    def test_search_user_non_existing_user(self):
+        token = self.login_for_test(self.data)
+        searchData = {
+            "searchId":self.newData["userId"]
+        }
+        response = self.client.post(f'/search/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, data=searchData, content_type=self.content_type)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], -1)
+        self.assertEqual(response.json()['info'], '用户不存在')

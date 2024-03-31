@@ -111,20 +111,20 @@ def search_user(request:HttpRequest, userId:str):
     body = json.loads ( request.body.decode('utf-8'))
     token = request.headers.get('Authorization')
     payload = check_jwt_token(token)
-    searchName = require(body,"searchName", "string",
+    searchId = require(body,"searchId", "string",
                      err_msg="Missing or error type of [searchId]")
 
     
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    users = User.objects.filter(userName=searchName).order_by("userId")
-    userList = []
-    for user in users:
-        userList.append({
-            "id": user.userId,
-            "name": user.userName,
-            "avatar": user.avatar
-        })
-    
-    return request_success(userList)
+    if User.objects.filter(userId=searchId).exists() is False:
+        return request_failed(-1,"用户不存在",404)
+    users = User.objects.get(userId=searchId)
+    data = {
+        "id": users.userId,
+        "name": users.userName,
+        "avatar": users.avatar
+    }
+
+    return request_success(data=data)
