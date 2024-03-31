@@ -125,7 +125,7 @@ def search_user(request:HttpRequest, userId:str):
     data = {
         "id": users.userId,
         "name": users.userName,
-        "avatar": users.avatar
+        "avatarUrl": users.avatarUrl
     }
 
     return request_success(data=data)
@@ -144,7 +144,7 @@ def profile(request: HttpRequest, userId: str):
         data={
             "userId": user.userId,
             "userName": user.userName,
-            "avatar": user.avatarUrl,
+            "avatarUrl": user.avatarUrl,
             "email": user.email,
             "phoneNumber": user.phoneNumber,
         }
