@@ -33,7 +33,8 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
-    'channels',
+    'corsheaders',
+    'daphne',
     'chat',
     'account',
     'friendship',
@@ -73,9 +74,17 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'tasright_backend.wsgi.application'
+ASGI_APPLICATION = "tasright_backend.asgi.application"
 
-
+WSGI_APPLICATION = "tasright_backend.wsgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
