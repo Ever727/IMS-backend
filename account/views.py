@@ -57,7 +57,6 @@ def register(request:HttpRequest):
     user.save()
     return request_success(data={"url":"/login"})
     
-
 def logout(request:HttpRequest):
     if request.method != 'POST':
         return BAD_METHOD
@@ -77,7 +76,6 @@ def logout(request:HttpRequest):
     user.status = False
     user.save()
     return request_success(data={"url":"/login"})
-
 
 def delete(request:HttpRequest):
     if request.method != 'POST':
@@ -100,7 +98,7 @@ def delete(request:HttpRequest):
     if user.isDeleted:
         return request_failed(-1,"用户已注销",404)
     if check_password(password,user.password) == False:
-        return request_failed(-3,"密码错误，请重试",401)
+        return request_failed(-3,"密码错误",401)
     
     user.isDeleted = True
     user.save()
@@ -126,7 +124,7 @@ def search_user(request:HttpRequest, userId:str):
         userList.append({
             "id": user.userId,
             "name": user.userName,
-            "avatar": user.avatarUrl
+            "avatar": user.avatar
         })
     
     return request_success(userList)

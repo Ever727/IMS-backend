@@ -123,7 +123,7 @@ def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
         friendList.append({
             "id": user.userId,
             "name": user.userName,
-            "avatar": user.avatarUrl
+            "avatar": user.avatar
         })
     
     return request_success(friendList)
@@ -151,7 +151,7 @@ def get_friendshipRequest_list(request:HttpRequest, userId:str) -> HttpResponse:
             "message": friendshipRequest.message,
             "sendTime": timestamp_to_datetime(friendshipRequest.sendTime),
             "status": friendshipRequest.status,
-            "avatar": user.avatarUrl
+            "avatar": user.avatar
         })
     
     return request_success(requestList)

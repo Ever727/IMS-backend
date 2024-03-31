@@ -21,28 +21,12 @@ class User(models.Model):
     loginTime = models.FloatField(default=get_timestamp)
     email = models.EmailField(max_length=50, null=True)
     phoneNumber = models.CharField(max_length=11, null=True)
-    avatarUrl = models.CharField(max_length=100, null=True)
+    avatar = models.CharField(max_length=100, null=True)
     status = models.BooleanField(default=False)
     isDeleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'user'
         
-
-    def serialize(self):
-        return {
-            'userId': self.userId,
-            'userName': self.userName,
-            'email': self.email,
-            'phoneNumber': self.phoneNumber,
-            'avatarUrl': self.avatarUrl,
-            'registerTime': self.registerTime,
-            'loginTime': self.loginTime,
-            'status': self.status,
-            'isDeleted': self.isDeleted
-        }
-
-    def __str__(self):
-        return self.userName
     
 
