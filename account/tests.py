@@ -122,3 +122,45 @@ class AccountTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], -1)
         self.assertEqual(response.json()['info'], '用户不存在')
+
+    def test_get_profile_existing_user(self):
+        token = self.login_for_test(self.data)
+        response = self.client.get(f'/profile/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, content_type=self.content_type)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['userId'], 'Bob')
+        self.assertEqual(response.json()['userName'], 'Bob')
+
+    def test_get_profile_nonexisting_user(self):    
+        token = self.login_for_test(self.data)
+        response = self.client.get(f'/profile/{self.newData["userId"]}/', HTTP_AUTHORIZATION=token, content_type=self.content_type)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], -1)
+        self.assertEqual(response.json()['info'], '用户不存在')
+
+    def test_get_profile_deleted_user(self):
+        token = self.login_for_test(self.data)
+        self.client.post('/delete/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
+        response = self.client.get(f'/profile/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, content_type=self.content_type)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], -1)
+        self.assertEqual(response.json()['info'], '用户已注销')
+
+
+    def test_update_profile_existing_user(self):
+        token = self.login_for_test(self.data)
+        data = {
+            "password":self.data["password"],
+            "newName": "Bob123",
+            "newPassword": "123456",
+            "newEmail": "123456@123.com",
+            "newPhoneNumber": "12345678901"
+        }
+        self.client.post(f'/update_profile/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, data=data, content_type=self.content_type)
+        response = self.client.get(f'/profile/{self.data["userId"]}/', HTTP_AUTHORIZATION=token, content_type=self.content_type)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['userName'], 'Bob123')
+        self.assertEqual(response.json()['email'], '123456@123.com')
+        self.assertEqual(response.json()['phoneNumber'], '12345678901')
+    

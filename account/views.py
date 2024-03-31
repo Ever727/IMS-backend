@@ -162,10 +162,8 @@ def update_profile(request: HttpRequest, userId: str):
     )
     payload = check_jwt_token(token)
 
-    if payload is None:
+    if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
-    if payload["userId"] != userId:
-        return request_failed(-4, "没有操作权限", 403)
 
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1, "用户不存在", 404)
@@ -174,7 +172,7 @@ def update_profile(request: HttpRequest, userId: str):
     if user.isDeleted:
         return request_failed(-1, "用户已注销", 404)
     if check_password(password, user.password) == False:
-        return request_failed(-3, "密码错误，请重试", 401)
+        return request_failed(-3, "密码错误", 401)
 
     if "newName" in body:
         user.userName = body["newName"]
