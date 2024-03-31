@@ -112,7 +112,7 @@ class FriendshipTestCase(TestCase):
         response = self.accept_friend_for_test(newToken,accept_data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
-        self.assertEqual(response.json()['message'], '接收成功')
+        self.assertEqual(response.json()['message'], '接受成功')
         friendshipRequest = FriendshipRequest.objects.get(senderId=self.data1["userId"], receiverId=self.data2["userId"])
         self.assertEqual(friendshipRequest.status, True)
         self.assertTrue(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data2["userId"]).exists())
