@@ -144,8 +144,6 @@ def profile(request: HttpRequest, userId: str):
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1, "用户不存在", 404)
     user = User.objects.get(userId=userId)
-    if user.isDeleted:
-        return request_failed(-1, "用户已注销", 404)
 
     return request_success(
         data={

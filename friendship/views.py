@@ -184,8 +184,8 @@ def check_friendship(request:HttpRequest) -> HttpResponse:
     
     if User.objects.filter(userId=userId).exists() is False:
         return request_failed(-1, "用户不存在", 404)
-    user = User.objects.get(userId=userId)
-    deleteStatus = True if user.isDeleted == True else False
+    friend = User.objects.get(userId=friendId)
+    deleteStatus = True if friend.isDeleted == True else False
     friendshipStatus = False
 
     if Friendship.objects.filter(userId=userId, friendId=friendId, status=True).exists() is True:
