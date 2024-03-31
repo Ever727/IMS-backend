@@ -165,3 +165,29 @@ def get_friendshipRequest_list(request:HttpRequest, userId:str) -> HttpResponse:
         })
     
     return request_success(requestList)
+
+
+def check_friendship(request:HttpRequest) -> HttpResponse:
+    if request.method != 'POST':
+        return BAD_METHOD
+    body = json.loads(request.body.decode('utf-8'))
+    userId = require(body, "userId", "string",
+                     err_msg="Missing or error type of [userId]")
+    friendId = require(body, "friendId", "string",
+                     err_msg="Missing or error type of [friendId]")
+    
+    token = request.headers.get('Authorization')
+    payload = check_jwt_token(token)
+    
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+    
+    if User.objects.filter(userId=userId).exists() is False:
+        return request_failed(-1, "用户不存在", 404)
+    user = User.objects.get(userId=userId)
+    deleteStatus = True if user.isDeleted == True else False
+    friendshipStatus = False
+
+    if Friendship.objects.filter(userId=userId, friendId=friendId, status=True).exists() is True:
+           friendshipStatus = True
+    return request_success({"deleteStatus": deleteStatus,"friendshipStatus": friendshipStatus})
