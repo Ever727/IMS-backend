@@ -1,9 +1,7 @@
 import re
 import json
 from django.http import HttpRequest
-from django.http import HttpRequest
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import make_password,check_password
 from account.models import User
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require
@@ -20,13 +18,13 @@ def login(request:HttpRequest):
     password = require(body, "password", "string",
                     err_msg="Missing or error type of [password]")
     
-    if User.objects.filter(userId=userId).exists() is False:
+    try:
+        user = User.objects.get(userId=userId, isDeleted=False)
+        if check_password(password,user.password) == False:
+            return request_failed(-3,"密码错误",401)
+    except User.DoesNotExist:
         return request_failed(-1,"ID错误",404)
-    user = User.objects.get(userId=userId)
-    if user.isDeleted:
-        return request_failed(-1,"ID错误",404)
-    if check_password(password,user.password) == False:
-        return request_failed(-3,"密码错误",401)
+   
     user.status = True
     user.save()
     data = {
@@ -57,7 +55,7 @@ def register(request:HttpRequest):
         return request_failed(-2,"密码格式错误",400)
     if len(userName) < 3 or len(userName) > 16 or  not re.match(pattern2, userName):
         return request_failed(-2,"用户名格式错误",400)
-   
+
     if User.objects.filter(userId=userId).exists():
         return request_failed(-2,"用户已存在",400)
     
@@ -73,7 +71,6 @@ def logout(request:HttpRequest):
     userId = require(body, "userId", "string",
                      err_msg="Missing or error type of [userId]")
     token = request.headers.get("Authorization")
-    body = json.loads(request.body.decode("utf-8"))
     payload = check_jwt_token(token)
     
     if payload is None or payload["userId"] != userId:
@@ -100,13 +97,12 @@ def delete(request:HttpRequest):
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
 
-    if User.objects.filter(userId=userId).exists() is False:
-        return request_failed(-1,"用户不存在",404)
-    user = User.objects.get(userId=userId)
-    if user.isDeleted:
-        return request_failed(-1,"用户已注销",404)
-    if check_password(password,user.password) == False:
-        return request_failed(-3,"密码错误",401)
+    try:
+        user = User.objects.get(userId=userId, isDeleted=False)
+        if check_password(password,user.password) == False:
+            return request_failed(-3,"密码错误",401)
+    except User.DoesNotExist:
+        return request_failed(-1,"用户不存在或已注销",404)
     
     user.isDeleted = True
     user.save()
@@ -126,34 +122,28 @@ def search_user(request:HttpRequest, userId:str):
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    if User.objects.filter(userId=searchId).exists() is False:
+    user_info = User.objects.filter(userId=searchId).values("userId", "userName", "avatarUrl","isDeleted").first()
+    if user_info is None:
         return request_failed(-1,"用户不存在",404)
-    users = User.objects.get(userId=searchId)
-    data = {
-        "id": users.userId,
-        "name": users.userName,
-        "avatarUrl": users.avatarUrl
-    }
 
-    return request_success(data=data)
+    return request_success(data={
+        "id": user_info["userId"],
+        "name": user_info["userName"],
+        "avatarUrl": user_info["avatarUrl"],
+        "isDeleted": user_info["isDeleted"]
+    })
 
 def profile(request: HttpRequest, userId: str):
     if request.method != "GET":
         return BAD_METHOD
 
-    if User.objects.filter(userId=userId).exists() is False:
+    user_info = User.objects.filter(userId=userId).values(
+            "userId", "userName", "avatarUrl", "email", "phoneNumber"
+        ).first()
+    if user_info is None:
         return request_failed(-1, "用户不存在", 404)
-    user = User.objects.get(userId=userId)
 
-    return request_success(
-        data={
-            "userId": user.userId,
-            "userName": user.userName,
-            "avatarUrl": user.avatarUrl,
-            "email": user.email,
-            "phoneNumber": user.phoneNumber,
-        }
-    )
+    return request_success(data=user_info)
 
 
 def update_profile(request: HttpRequest, userId: str):
@@ -170,14 +160,12 @@ def update_profile(request: HttpRequest, userId: str):
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
 
-    if User.objects.filter(userId=userId).exists() is False:
-        return request_failed(-1, "用户不存在", 404)
-    user = User.objects.get(userId=userId)
-
-    if user.isDeleted:
-        return request_failed(-1, "用户已注销", 404)
-    if check_password(password, user.password) == False:
-        return request_failed(-3, "密码错误", 401)
+    try:
+        user = User.objects.get(userId=userId, isDeleted=False)
+        if check_password(password, user.password) == False:
+            return request_failed(-3, "密码错误", 401)
+    except User.DoesNotExist:
+        return request_failed(-1, "用户不存在或已注销", 404)
 
     if "newName" in body:
         user.userName = body["newName"]
