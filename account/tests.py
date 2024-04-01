@@ -71,6 +71,7 @@ class AccountTests(TestCase):
        self.assertEqual(response.json()['code'], -1)
 
      # * Tests for logout view
+    
     def test_logout_logined_user(self):
         token = self.login_for_test(self.data)
         res = self.client.post('/logout/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)

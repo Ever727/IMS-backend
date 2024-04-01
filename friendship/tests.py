@@ -191,4 +191,39 @@ class FriendshipTestCase(TestCase):
         self.assertEqual(response.json()['data'][0]['message'], 'hello django')
         self.assertEqual(response.json()['data'][1]['id'], self.data1["userId"])
         self.assertEqual(response.json()['data'][1]['message'], 'hello react')
+
+    def test_check_friendship(self):
+        data = {
+            "userId": self.data1["userId"],
+            "searchId":self.data2["userId"],
+            "message": "hello world"
+            }
+        accept_data = {
+            "senderId": self.data1["userId"],
+            "receiverId": self.data2["userId"],
+        }
+        friend_data = {
+            "userId": self.data1["userId"],
+            "friendId": self.data2["userId"],
+        }
+
+        token = self.login_for_test(self.data1)    
+        self.add_friend_for_test(token,data)
+        newToken = self.login_for_test(self.data2)
+        self.accept_friend_for_test(newToken,accept_data)
+        
+        response = self.client.post('/friends/check_friendship/',data=friend_data, HTTP_AUTHORIZATION=token,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertFalse(response.json()['deleteStatus'])
+        self.assertTrue(response.json()['friendshipStatus'])
+
+        self.client.post('/friends/delete_friend/',data=friend_data, HTTP_AUTHORIZATION=token,content_type='application/json')
+        self.client.post('/delete/',data=self.data2, HTTP_AUTHORIZATION=newToken,content_type='application/json')
+
+        response = self.client.post('/friends/check_friendship/',data=friend_data, HTTP_AUTHORIZATION=token,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertTrue(response.json()['deleteStatus'])
+        self.assertFalse(response.json()['friendshipStatus'])
         
