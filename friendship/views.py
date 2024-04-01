@@ -60,13 +60,10 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    if Friendship.objects.filter(userId=userId, friendId=friendId).exists() is False:
+    if Friendship.objects.filter(userId=userId, friendId=friendId,status=True).exists() is False:
         return request_failed(4, "好友关系不存在", 404)
 
     friendship = Friendship.objects.get(userId=userId, friendId=friendId)
-    if friendship.status == False:
-        return request_failed(4, "好友关系不存在", 404)
-
     friendship.status = False
     friendship.save()
 
@@ -182,7 +179,7 @@ def check_friendship(request:HttpRequest) -> HttpResponse:
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    if User.objects.filter(userId=userId).exists() is False:
+    if User.objects.filter(userId=friendId).exists() is False:
         return request_failed(-1, "用户不存在", 404)
     friend = User.objects.get(userId=friendId)
     deleteStatus = True if friend.isDeleted == True else False
@@ -191,3 +188,30 @@ def check_friendship(request:HttpRequest) -> HttpResponse:
     if Friendship.objects.filter(userId=userId, friendId=friendId, status=True).exists() is True:
            friendshipStatus = True
     return request_success({"deleteStatus": deleteStatus,"friendshipStatus": friendshipStatus})
+
+
+def add_tag(request:HttpRequest) -> HttpResponse:
+    if request.method != 'POST':
+        return BAD_METHOD
+    body = json.loads(request.body.decode('utf-8'))
+    token = request.headers.get('Authorization')
+    payload = check_jwt_token(token)
+    userId = require(body, "userId", "string",
+                     err_msg="Missing or error type of [userId]")
+    friendId = require(body, "friendId", "string",
+                     err_msg="Missing or error type of [friendId]")
+    tag = require(body, "tag", "string",
+                     err_msg="Missing or error type of [tag]")
+    
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+    if User.objects.filter(userId=friendId, isDeleted=False).exists() is False:
+        return request_failed(-1, "好友已注销", 404)
+    if Friendship.objects.filter(userId=userId, friendId=friendId, status=True).exists() is False:
+        return request_failed(-1, "好友关系不存在", 404)
+    
+    friendship = Friendship.objects.get(userId=userId, friendId=friendId,status=True)
+    friendship.tag = tag
+    friendship.save()
+    
+    return request_success({"message": "添加标签成功"})
