@@ -2,12 +2,20 @@ from django.db import models
 from utils.utils_time import get_timestamp
 from account.models import User
 # Create your models here.
+
+class Conversation(models.Model):
+    TYPE_CHOICES = [
+        ('private_chat', 'Private Chat'),
+        ('group_chat', 'Group Chat'),
+    ]
+    type = models.CharField(max_length=12, choices=TYPE_CHOICES)
+    members = models.ManyToManyField(User, related_name='conversations')
+
 class Message(models.Model):
     id = models.AutoField(primary_key=True)
-    type = models.BooleanField(default=False)
-    sender = models.CharField(max_length=20)
-    receiver = models.CharField(max_length=20)
-    session = models.IntegerField(null = True, blank = True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
+    sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
+    receivers = models.ManyToManyField(User, related_name='received_messages')
     sendTime = models.FloatField(default=get_timestamp)
     content = models.CharField(max_length=200,default='',blank=True,null=True)
     replyId = models.ManyToManyField('self', related_name='reply_message', symmetrical=False, blank=True)
