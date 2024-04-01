@@ -162,6 +162,39 @@ class FriendshipTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['data'], [])
 
+    def test_get_friends_list(self):
+        newData ={
+            "userName": "user3", "userId":"user3", "password": "123456"
+        }
+        self.client.post("/register/", data=newData, content_type='application/json')
+
+        token1 = self.login_for_test(self.data1)
+        data = {
+            "userId": self.data1["userId"],
+            "searchId":newData["userId"],
+            "message": "hello friend"
+            }
+        self.add_friend_for_test(token1, data)
+        
+        token2 = self.login_for_test(self.data2)
+        data = {
+            "userId": self.data2["userId"],
+            "searchId":newData["userId"],
+            "message": "hello friend"
+            }
+        self.add_friend_for_test(token2, data)
+
+        token = self.login_for_test(newData)
+        self.accept_friend_for_test(token,{"senderId": self.data1["userId"], "receiverId": newData["userId"]})
+        self.accept_friend_for_test(token,{"senderId": self.data2["userId"], "receiverId": newData["userId"]})
+        response = self.client.get(f'/friends/myfriends/{newData["userId"]}/', HTTP_AUTHORIZATION=token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()['data']), 2)
+        self.assertEqual(response.json()['data'][0]['userId'], self.data1["userId"])
+        self.assertEqual(response.json()['data'][0]['userName'], self.data1["userName"])
+        self.assertEqual(response.json()['data'][1]['userId'], self.data2["userId"])
+        self.assertEqual(response.json()['data'][1]['userName'],self.data2["userName"])
+   
     def test_get_requests_list(self):
         newData ={
             "userName": "user3", "userId":"user3", "password": "123456"

@@ -126,7 +126,7 @@ def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    friendIds = Friendship.objects.filter(userId=userId, status=True).values_list('friendId', flat=True)
+    friendIds = Friendship.objects.filter(userId=userId, status=True).order_by("friendId").values_list('friendId', flat=True)
     friendList = list(User.objects.filter(userId__in=friendIds).values("userId", "userName", "avatarUrl", "isDeleted"))
     
     return request_success(friendList)
