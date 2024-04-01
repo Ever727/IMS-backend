@@ -22,7 +22,7 @@ class User(models.Model):
     loginTime = models.FloatField(default=get_timestamp)
     email = models.EmailField(max_length=50, null=True)
     phoneNumber = models.CharField(max_length=11, null=True)
-    avatarUrl = models.TextField(null=True)
+    avatarUrl = models.TextField(null=True,default='undefined')
     status = models.BooleanField(default=False)
     isDeleted = models.BooleanField(default=False)
 

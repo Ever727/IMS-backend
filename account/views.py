@@ -28,7 +28,6 @@ def login(request:HttpRequest):
     user.status = True
     user.save()
     data = {
-        "url": f"/chat/{user.userId}",
         "userId": user.userId,
         "userName": user.userName,
         "avatarUrl": user.avatarUrl,
