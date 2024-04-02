@@ -138,10 +138,22 @@ def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
     
-    friendIds = Friendship.objects.filter(userId=userId, status=True).order_by("friendId").values_list('friendId', flat=True)
-    friendList = list(User.objects.filter(userId__in=friendIds).values("userId", "userName", "avatarUrl", "isDeleted"))
-    
+
+  # 获取好友ID和对应的tag，然后转换为字典以便快速查找
+    friendships = Friendship.objects.filter(
+        userId=userId,
+        status=True
+    ).order_by("friendId").values_list("friendId", "tag")
+    friendships_dict = dict(friendships)
+
+    # 根据friendIds获取用户信息，并直接在查询集上迭代以提高效率
+    friendList = []
+    users = User.objects.filter(userId__in=friendships_dict.keys()).values("userId", "userName",  "isDeleted")
+    for user in users:
+        user['tag'] = friendships_dict.get(user['userId'])
+        friendList.append(user)
     return request_success(friendList)
+
 
 
 # 从数据库中筛选出发给自己的好友请求，返回一个list
@@ -220,6 +232,8 @@ def add_tag(request:HttpRequest) -> HttpResponse:
         return request_failed(-3, "JWT 验证失败", 401)
     if User.objects.filter(userId=friendId, isDeleted=False).exists() is False:
         return request_failed(-1, "好友已注销", 404)
+    if len(tag) > 30:
+        return request_failed(-2, "tag长度不能超过30", 400)
     
     try:
         friendship = Friendship.objects.get(userId=userId, friendId=friendId,status=True)

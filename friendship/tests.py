@@ -260,3 +260,40 @@ class FriendshipTestCase(TestCase):
         self.assertTrue(response.json()['deleteStatus'])
         self.assertFalse(response.json()['friendshipStatus'])
         
+    def test_add_tag(self):
+        token = self.login_for_test(self.data1)
+        add_data = {
+            "userId": self.data1["userId"],
+            "searchId":self.data2["userId"],
+            "message": "hello world"
+            }
+        self.add_friend_for_test(token,add_data)
+        newToken = self.login_for_test(self.data2)
+        accept_data = {
+            "senderId": self.data1["userId"],
+            "receiverId": self.data2["userId"],
+        }
+        self.accept_friend_for_test(newToken,accept_data)
+        tag_data = {
+            "userId": self.data1["userId"],
+            "friendId": self.data2["userId"],
+            "tag": "Hola"
+        }
+        response = self.client.post('/friends/add_tag/',data=tag_data, HTTP_AUTHORIZATION=token,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['message'], 'tag添加成功')
+        friendship = Friendship.objects.get(userId=self.data1["userId"], friendId=self.data2["userId"])
+        self.assertEqual(friendship.tag, 'Hola')
+
+        tag_data = {
+            "userId": self.data2["userId"],
+            "friendId": self.data1["userId"],
+            "tag": "Adiós"
+        }
+        response = self.client.post('/friends/add_tag/',data=tag_data, HTTP_AUTHORIZATION=newToken,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['message'], 'tag添加成功')
+        friendship = Friendship.objects.get(userId=self.data2["userId"], friendId=self.data1["userId"])
+        self.assertEqual(friendship.tag, 'Adiós')
