@@ -97,9 +97,16 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
         return request_failed(-3, "JWT 验证失败", 401)
     
     
-    friendshipRequest = FriendshipRequest.objects.filter(senderId=senderId, receiverId=receiverId).latest("sendTime")
+    friendshipRequest = FriendshipRequest.objects.filter(senderId=senderId, receiverId=receiverId,status=0).latest("sendTime")
     friendshipRequest.status = 1
     friendshipRequest.save()
+
+    try:
+        friendshipRequest = FriendshipRequest.objects.filter(senderId=senderId, receiverId=receiverId,status=0).latest("sendTime")
+        friendshipRequest.status = 1
+        friendshipRequest.save()
+    except FriendshipRequest.DoesNotExist:
+        pass
     
     try:
        friendship = Friendship.objects.get(userId=receiverId, friendId=senderId)
