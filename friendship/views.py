@@ -38,7 +38,7 @@ def add_friend(request:HttpRequest) -> HttpResponse:
             return request_failed(-4, "已经是好友", 403)
     try:
         friendshipRequest = FriendshipRequest.objects.filter(senderId=userId, receiverId=searchId).latest("sendTime")
-        if get_timestamp() - friendshipRequest.sendTime <  60 * 60 * 3 * 1 :
+        if get_timestamp() - friendshipRequest.sendTime <  1 :
             return request_failed(-4, "发送申请过于频繁", 403)
         else:
             friendshipRequest.status = 2
@@ -96,13 +96,15 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
     if payload is None or payload["userId"] != receiverId:
         return request_failed(-3, "JWT 验证失败", 401)
     
+    if Friendship.objects.filter(userId=receiverId, friendId=senderId, status=True).exists():
+        return request_failed(-4, "已经是好友", 403)
     
     friendshipRequest = FriendshipRequest.objects.filter(senderId=senderId, receiverId=receiverId,status=0).latest("sendTime")
     friendshipRequest.status = 1
     friendshipRequest.save()
 
     try:
-        friendshipRequest = FriendshipRequest.objects.filter(senderId=senderId, receiverId=receiverId,status=0).latest("sendTime")
+        friendshipRequest = FriendshipRequest.objects.filter(senderId=receiverId, receiverId=senderId,status=0).latest("sendTime")
         friendshipRequest.status = 1
         friendshipRequest.save()
     except FriendshipRequest.DoesNotExist:
