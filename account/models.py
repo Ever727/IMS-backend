@@ -1,5 +1,6 @@
 from django.db import models
 from utils.utils_time import get_timestamp
+from utils.constants import user_default_avatarUrl
 
 
 # Create your models here.
@@ -22,7 +23,7 @@ class User(models.Model):
     loginTime = models.FloatField(default=get_timestamp)
     email = models.EmailField(max_length=50, null=True)
     phoneNumber = models.CharField(max_length=11, null=True)
-    avatarUrl = models.TextField(null=True,default='undefined')
+    avatarUrl = models.TextField(default=user_default_avatarUrl)
     status = models.BooleanField(default=False)
     isDeleted = models.BooleanField(default=False)
 
