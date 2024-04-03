@@ -148,7 +148,7 @@ def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
 
     # 根据friendIds获取用户信息，并直接在查询集上迭代以提高效率
     friendList = []
-    users = User.objects.filter(userId__in=friendships_dict.keys()).values("userId", "userName",  "isDeleted")
+    users = User.objects.filter(userId__in=friendships_dict.keys()).values("userId", "userName", "avatarUrl", "isDeleted")
     for user in users:
         user['tag'] = friendships_dict.get(user['userId'])
         friendList.append(user)
