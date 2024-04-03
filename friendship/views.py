@@ -69,10 +69,12 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
     try:
         friendship = Friendship.objects.get(userId=userId, friendId=friendId,status=True)
         friendship.status = False
+        friendship.tag = ""
         friendship.save()
 
         friendship = Friendship.objects.get(userId=friendId, friendId=userId,status=True)
         friendship.status = False
+        friendship.tag = ""
         friendship.save()
     except Friendship.DoesNotExist:
         return request_failed(-1, "好友关系不存在", 404)
