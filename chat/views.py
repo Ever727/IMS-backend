@@ -27,7 +27,7 @@ def format_message(message: Message) -> dict:
         "conversation": message.conversation.id,
         "sender": message.sender.userName,
         "content": message.content,
-        "timestamp": to_timestamp(message.timestamp),
+        "timestamp": to_timestamp(message.sendTime),
     }
 
 
@@ -98,8 +98,8 @@ def messages(request: HttpRequest) -> HttpResponse:
         )
         limit: int = int(request.GET.get("limit", "100"))
 
-        messagesQuery = Message.objects.filter(timestamp__gte=afterDatetime).order_by(
-            "timestamp"
+        messagesQuery = Message.objects.filter(sendTime__gte=afterDatetime).order_by(
+            "sendTime"
         )
         messagesQuery = messagesQuery.prefetch_related("conversation")
 
@@ -143,7 +143,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         data = json.loads(request.body)
         userId = data.get("userId")
-        conversation_type = data.get("type")
+        conversationType = data.get("type")
         memberIds = data.get("members", [])
 
         token = request.headers.get("Authorization")
@@ -165,7 +165,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
         if not members:
             return request_failed(-2, "至少需要两个用户参与聊天", 400)
 
-        if conversation_type == "private_chat":
+        if conversationType == "private_chat":
             if len(members) != 2:
                 return request_failed(-2, "私人聊天只能由两个用户参与", 400)
 
@@ -189,12 +189,12 @@ def conversations(request: HttpRequest) -> HttpResponse:
                     # 找到了一个已存在的私人聊天，直接返回
                     return JsonResponse(format_conversation(conv), status=200)
 
-        conversation = Conversation.objects.create(type=conversation_type)
+        conversation = Conversation.objects.create(type=conversationType)
         conversation.members.set(members)
         return JsonResponse(format_conversation(conversation), status=200)
 
     elif request.method == "GET":
-        userId = request.GET.get("userId")
+        userId: str = request.GET.get("userId")
         token = request.headers.get("Authorization")
         payload = check_jwt_token(token)
 

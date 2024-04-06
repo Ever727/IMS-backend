@@ -16,7 +16,7 @@ class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
     sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
     receivers = models.ManyToManyField(User, related_name='received_messages')
-    sendTime = models.FloatField(default=get_timestamp)
+    sendTime = models.DateTimeField(auto_now_add=True, db_index=True)
     content = models.CharField(max_length=200,default='',blank=True,null=True)
     replyId = models.ManyToManyField('self', related_name='reply_message', symmetrical=False, blank=True)
     readId = models.ManyToManyField(User, related_name='read_message', symmetrical=False, blank=True)
