@@ -14,6 +14,7 @@ from utils.utils_require import require
 from utils.utils_jwt import generate_jwt_token, check_jwt_token
 from utils.utils_time import get_timestamp
 
+
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
     return int(dt.timestamp() * 1_000)
@@ -33,12 +34,13 @@ def format_conversation(conversation: Conversation) -> dict:
     return {
         "id": conversation.id,
         "type": conversation.type,
-        "members": [user.username for user in conversation.members.all()],
+        "members": [user.userId for user in conversation.members.all()],
     }
 
 
 def check_username(value: str) -> bool:
     return re.match(r"^\w+$", value) and len(value) <= 20
+
 
 # Create your views here.
 @require_http_methods(["POST", "GET"])
@@ -99,7 +101,7 @@ def messages(request: HttpRequest) -> HttpResponse:
             "timestamp"
         )
         messagesQuery = messagesQuery.prefetch_related("conversation")
-        
+
         token = request.headers.get("Authorization")
         payload = check_jwt_token(token)
 
@@ -135,4 +137,65 @@ def messages(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"messages": messagesData, "hasNext": hasNext}, status=200)
 
 
+@require_http_methods(["POST", "GET"])
+def conversations(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        data = json.loads(request.body)
+        userId = data.get("userId")
+        conversation_type = data.get("type")
+        memberIds = data.get("members", [])
 
+        token = request.headers.get("Authorization")
+        payload = check_jwt_token(token)
+
+        # 验证 token
+        if payload is None or payload["userId"] != userId:
+            return request_failed(-3, "JWT 验证失败", 401)
+
+        # 检查用户名是否合法
+        members = []
+        for id in memberIds:
+            try:
+                user = User.objects.get(userId=id)
+                members.append(user)
+            except User.DoesNotExist:
+                return request_failed(-2, "用户不存在", 400)
+
+        if not members:
+            return request_failed(-2, "至少需要两个用户参与聊天", 400)
+
+        if conversation_type == "private_chat":
+            if len(members) != 2:
+                return request_failed(-2, "私人聊天只能由两个用户参与", 400)
+            # 检查是否已存在私人聊天
+            existingConversations = (
+                Conversation.objects.filter(members__in=members, type="private_chat")
+                .prefetch_related("members")
+                .distinct()
+            )
+            for conv in existingConversations:
+                if conv.members.count() == 2 and set(conv.members.all()) == set(
+                    members
+                ):
+                    # 找到了一个已存在的私人聊天，直接返回
+                    return JsonResponse(format_conversation(conv), status=200)
+
+        conversation = Conversation.objects.create(type=conversation_type)
+        conversation.members.set(members)
+        return JsonResponse(format_conversation(conversation), status=200)
+
+    elif request.method == "GET":
+        userId = request.GET.get("userId")
+        token = request.headers.get("Authorization")
+        payload = check_jwt_token(token)
+
+        # 验证 token
+        if payload is None or payload["userId"] != userId:
+            return request_failed(-3, "JWT 验证失败", 401)
+
+        conversationIds = request.GET.getlist("id", [])
+        validConversations = Conversation.objects.filter(
+            id__in=conversationIds
+        ).prefetch_related("members")
+        response_data = [format_conversation(conv) for conv in validConversations]
+        return JsonResponse({"conversations": response_data}, status=200)
