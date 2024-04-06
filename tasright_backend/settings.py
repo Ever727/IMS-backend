@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -77,14 +78,7 @@ TEMPLATES = [
 ASGI_APPLICATION = "tasright_backend.asgi.application"
 
 WSGI_APPLICATION = "tasright_backend.wsgi.application"
-CHANNEL_LAYERS = {
-    "default": {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        # "CONFIG": {
-        #     "hosts": [("127.0.0.1", 6379)],
-        # },
-    },
-}
+
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
@@ -120,7 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
@@ -136,3 +130,14 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CHANNEL_LAYERS = {
+    "default": {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        # "CONFIG": {
+        #     "hosts": [("127.0.0.1", 6379)],
+        # },
+    },
+}
+
+CORS_ALLOW_ALL_ORIGINS = True
