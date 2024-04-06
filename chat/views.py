@@ -5,6 +5,7 @@ from typing import Dict, Any
 from django.http import JsonResponse, HttpResponse, HttpRequest
 from django.views.decorators.http import require_http_methods
 from account.models import User
+from friendship.models import Friendship
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .models import Message, Conversation
@@ -167,6 +168,14 @@ def conversations(request: HttpRequest) -> HttpResponse:
         if conversation_type == "private_chat":
             if len(members) != 2:
                 return request_failed(-2, "私人聊天只能由两个用户参与", 400)
+
+            try:
+                Friendship.objects.get(
+                    userId=members[0].userId, friendId=members[1].userId
+                )
+            except Friendship.DoesNotExist:
+                return request_failed(-2, "用户不在好友列表中", 400)
+
             # 检查是否已存在私人聊天
             existingConversations = (
                 Conversation.objects.filter(members__in=members, type="private_chat")
