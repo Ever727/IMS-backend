@@ -82,12 +82,12 @@ def messages(request: HttpRequest) -> HttpResponse:
 
         channelLayer = get_channel_layer()
         for member in conversation.members.all():
-            async_to_sync(channelLayer.group_send)(member.userName, {"type": "notify"})
+            async_to_sync(channelLayer.group_send)(member.userId, {"type": "notify"})
 
         return JsonResponse(format_message(message), status=200)
 
     elif request.method == "GET":
-        userName: str = request.GET.get("userName")
+        userId: str = request.GET.get("userId")
         conversationId: str = request.GET.get("conversationId")
         after: str = request.GET.get("after", "0")
         afterDatetime = datetime.fromtimestamp(
@@ -99,10 +99,18 @@ def messages(request: HttpRequest) -> HttpResponse:
             "timestamp"
         )
         messagesQuery = messagesQuery.prefetch_related("conversation")
+        
+        token = request.headers.get("Authorization")
+        payload = check_jwt_token(token)
 
-        if userName:
+        # 验证 token
+        if payload is None or payload["userId"] != userId:
+            return request_failed(-3, "JWT 验证失败", 401)
+
+        # 验证 conversationId 和 userId 的合法性
+        if userId:
             try:
-                user = User.objects.get(userName=userName)
+                user = User.objects.get(userId=userId)
                 messagesQuery = messagesQuery.filter(receivers=user)
             except User.DoesNotExist:
                 return JsonResponse({"messages": [], "hasNext": False}, status=200)
@@ -113,10 +121,7 @@ def messages(request: HttpRequest) -> HttpResponse:
             except Conversation.DoesNotExist:
                 return JsonResponse({"messages": [], "hasNext": False}, status=200)
         else:
-            return JsonResponse(
-                {"error": "Either username or conversation ID must be specified"},
-                status=400,
-            )
+            return request_failed(-2, "用户或会话不存在", 400)
 
         messages = list(messagesQuery[: limit + 1])
         messagesData = [format_message(message) for message in messages]
