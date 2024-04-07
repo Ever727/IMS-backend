@@ -28,6 +28,7 @@ def format_message(message: Message) -> dict:
         "sender": message.sender.userId,
         "content": message.content,
         "timestamp": to_timestamp(message.sendTime),
+        "avatar": message.sender.avatarUrl,
     }
 
 
