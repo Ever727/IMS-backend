@@ -25,7 +25,7 @@ def format_message(message: Message) -> dict:
     return {
         "id": message.id,
         "conversation": message.conversation.id,
-        "sender": message.sender.userName,
+        "sender": message.sender.userId,
         "content": message.content,
         "timestamp": to_timestamp(message.sendTime),
     }
