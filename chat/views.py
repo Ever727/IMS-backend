@@ -46,9 +46,9 @@ def messages(request: HttpRequest) -> HttpResponse:
             return request_failed(-2, "会话不存在", 400)
 
         try:
-            sender = User.objects.get(userId=userId)
+            sender = User.objects.get(userId=userId, isDeleted=False)
         except User.DoesNotExist:
-            return request_failed(-2, "用户不存在", 400)
+            return request_failed(-2, "用户不存在或已注销", 400)
 
         # 验证 sender 是否是 conversation 的成员
         if not conversation.members.filter(id=sender.id).exists():
@@ -135,7 +135,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
         members = []
         for id in memberIds:
             try:
-                user = User.objects.get(userId=id)
+                user = User.objects.get(userId=id, isDeleted=False)
                 members.append(user)
             except User.DoesNotExist:
                 return request_failed(-2, "用户不存在", 400)
@@ -149,7 +149,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
 
             try:
                 Friendship.objects.get(
-                    userId=members[0].userId, friendId=members[1].userId
+                    userId=members[0].userId, friendId=members[1].userId, status=True
                 )
             except Friendship.DoesNotExist:
                 return request_failed(-2, "用户不在好友列表中", 400)
