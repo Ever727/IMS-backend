@@ -1,7 +1,7 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-class IMDemoConsumer(AsyncWebsocketConsumer):
+class chatConsumer(AsyncWebsocketConsumer):
     # 当客户端尝试建立 WebSocket 连接时调用
     async def connect(self) -> None:
         # 从查询字符串中提取用户名
