@@ -30,11 +30,11 @@ def messages(request: HttpRequest) -> HttpResponse:
                             err_msg="Missing or error type of [userId]")
         content = require(body, "content", "string",
                             err_msg="Missing or error type of [content]")
-        if messageId in body:
-            messageId = require(body, "messageId", "int",
-                            err_msg="Missing or error type of [messageId]")
+        replyId = body.get("replyId", None)
+        if replyId is not None:
+            replyId = int(replyId)
             try:
-                replyTo = Message.objects.get(id=messageId)
+                replyTo = Message.objects.get(id=replyId)
             except Message.DoesNotExist:
                 return request_failed(-2, "原消息不存在", 400)
 
@@ -66,9 +66,9 @@ def messages(request: HttpRequest) -> HttpResponse:
         message = Message.objects.create(
             conversation=conversation, sender=sender, content=content
         )
-        if "replyTo" in locals():
+        if replyId is not None:
             message.replyTo = replyTo
-
+        message.save()
         # TODO: 考虑注销的人是否应该收到通知
         message.receivers.set(conversation.members.all())
 
@@ -179,7 +179,8 @@ def conversations(request: HttpRequest) -> HttpResponse:
 
         conversation = Conversation.objects.create(type=conversationType)
         conversation.members.set(members)
-        return request_success(conversation.serilize(0))
+        # TODO: 群聊头像
+        return request_success(conversation.serilize(0, None))
 
     elif request.method == "GET":
         userId: str = request.GET.get("userId")
@@ -197,11 +198,11 @@ def conversations(request: HttpRequest) -> HttpResponse:
         response_data = []
         for conv in validConversations:
             if conv.type == "private_chat":
-                avatar = conv.members.exclude(id=userId).first().avatarUrl
+                avatar = conv.members.exclude(userId=userId).first().avatarUrl
             else:
                 # TODO: 群聊头像
                 avatar = None
-            response_data.append(conv.serialize(get_unread_count(userId, conv.id)), avatar)       
+            response_data.append(conv.serilize(get_unread_count(userId, conv.id),avatar))       
 
         return request_success({"conversations": response_data})
 
@@ -255,13 +256,14 @@ def read_message(request: HttpRequest) -> HttpResponse:
     
     try:
         user = User.objects.get(userId=userId)
+        id = user.id
     except User.DoesNotExist:
         return request_failed(-2, "用户不存在", 400)
 
-    messages = Message.objects.filter(conversation=conversationId).exclude(sender=userId).exclude(readUsers__in=[userId]).prefetch_related("readUsers")
+    messages = Message.objects.filter(conversation=conversationId).exclude(sender=id).exclude(readUsers__in=[id]).prefetch_related("readUsers")
     for message in messages:
         message.readUsers.add(user)
-    Message.objects.bulk_update(messages, ['readUsers'])    
+        message.save()
 
     return request_success({"info": "已读成功"})
 
@@ -270,6 +272,6 @@ def get_unread_count(userId: str, conversationId: int):
     conversation = Conversation.objects.prefetch_related("members").get(
         id=conversationId,
     )
-
-    count = Message.objects.filter(conversation=conversation).exclude(sender=userId).exclude(readUsers__in=[userId]).aggregate(count=Count('id'))['count']
+    id = User.objects.get(userId=userId).id
+    count = Message.objects.filter(conversation=conversation).exclude(sender=id).exclude(readUsers__in=[id]).aggregate(count=Count('id'))['count']
     return count

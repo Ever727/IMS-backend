@@ -8,7 +8,9 @@ from account.models import User
 import json
 from chat.models import Conversation
 from django.db.models import Count
-
+from chat.models import Message
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 # Create your views here.
 def add_friend(request:HttpRequest) -> HttpResponse:
     if request.method != 'POST':
@@ -134,6 +136,7 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
        conversation = Conversation.objects.filter( type='private_chat', members__in=members,
             ).annotate(num_members=Count('members')).filter(num_members=2).first()
        
+       
        conversation.status = True
        conversation.save()
 
@@ -149,7 +152,17 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
         conversation.save()
         conversation.members.set(members)
         conversation.save()
-    
+
+    sender = User.objects.get(userId=senderId)
+    message = Message.objects.create(
+            conversation=conversation, sender=sender, content="我们已经成为好友了"
+        )
+
+    message.receivers.set(conversation.members.all())
+
+    channelLayer = get_channel_layer()
+    for member in conversation.members.all():
+        async_to_sync(channelLayer.group_send)(member.userId, {"type": "notify"})        
     return request_success({"message": "接受成功"})
 
 

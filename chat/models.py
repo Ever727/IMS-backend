@@ -40,7 +40,7 @@ class Message(models.Model):
             "conversation": self.conversation.id,
             "sender": self.sender.userId,
             "content": self.content,
-            "timestamp":  int(self.sendTime * 1_000),
+            "timestamp":  int(self.sendTime.timestamp() * 1_000),
             "avatar": self.sender.avatarUrl,
             "replyId": [message.id for message in self.replyTo.all()],
             "readList": [user.userName for user in self.readUsers.all()],
