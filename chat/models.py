@@ -12,13 +12,14 @@ class Conversation(models.Model):
     members = models.ManyToManyField(User, related_name='conversations')
     status = models.BooleanField(default=True)
 
-    def serilize(self, newMessageNum):
+    def serilize(self, newMessageNum, avatarUrl):
         return {
             "id": self.id,
             "type": self.type,
             "members": [user.userId for user in self.members.all()],
             "status": self.status,
             "newMessage": newMessageNum,
+            "avatarUrl": avatarUrl
 
         }
 
@@ -42,7 +43,7 @@ class Message(models.Model):
             "timestamp":  int(self.sendTime * 1_000),
             "avatar": self.sender.avatarUrl,
             "replyId": [message.id for message in self.replyTo.all()],
-            "readId": [user.userId for user in self.readUsers.all()],
+            "readList": [user.userName for user in self.readUsers.all()],
     }
 
     class Meta:

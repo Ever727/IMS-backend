@@ -48,7 +48,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         # 验证 conversationId 和 userId 的合法性
         try:
             conversation = Conversation.objects.prefetch_related("members").get(
-                id=conversationId
+                id=conversationId, status=True
             )
         except Conversation.DoesNotExist:
             return request_failed(-2, "会话不存在", 400)
@@ -101,7 +101,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         if userId:
             try:
                 user = User.objects.get(userId=userId)
-                messagesQuery = messagesQuery.filter(receivers=user).exclude(deleteMembers=user)
+                messagesQuery = messagesQuery.filter(receivers=user).exclude(deleUsers=user)
             except User.DoesNotExist:
                 return JsonResponse({"messages": [], "hasNext": False}, status=200)
         elif conversationId:
@@ -194,13 +194,21 @@ def conversations(request: HttpRequest) -> HttpResponse:
         validConversations = Conversation.objects.filter(
             id__in=conversationIds
         ).prefetch_related("members")
-        response_data = [conv.serilize(get_unread_count(userId, conv.id)) for conv in validConversations]
+        response_data = []
+        for conv in validConversations:
+            if conv.type == "private_chat":
+                avatar = conv.members.exclude(id=userId).first().avatarUrl
+            else:
+                # TODO: 群聊头像
+                avatar = None
+            response_data.append(conv.serialize(get_unread_count(userId, conv.id)), avatar)       
+
         return request_success({"conversations": response_data})
 
 
 
 def delete_message(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
+    if request.method != "POST":
         return BAD_METHOD
 
     body = json.loads(request.body.decode("utf-8"))
@@ -228,7 +236,7 @@ def delete_message(request: HttpRequest) -> HttpResponse:
     return request_success({"info": "删除成功"})
 
 def read_message(request: HttpRequest) -> HttpResponse:
-    if request.method == "POST":
+    if request.method != "POST":
         return BAD_METHOD
 
     body = json.loads(request.body.decode("utf-8"))
@@ -250,17 +258,18 @@ def read_message(request: HttpRequest) -> HttpResponse:
     except User.DoesNotExist:
         return request_failed(-2, "用户不存在", 400)
 
-    messages = Message.objects.filter(conversation=conversationId).exclude(readUsers__in=[user]).prefetch_related("conversation")
-    messages.update(readUsers=F('readUsers').append(user))
+    messages = Message.objects.filter(conversation=conversationId).exclude(sender=userId).exclude(readUsers__in=[userId]).prefetch_related("readUsers")
+    for message in messages:
+        message.readUsers.add(user)
+    Message.objects.bulk_update(messages, ['readUsers'])    
 
     return request_success({"info": "已读成功"})
 
 def get_unread_count(userId: str, conversationId: int):
 
-    user = User.objects.get(userId=userId)
     conversation = Conversation.objects.prefetch_related("members").get(
-        id=conversationId
+        id=conversationId,
     )
 
-    count = Message.objects.filter(conversation=conversation).exclude(readUsers__in=[user]).aggregate(count=Count('id'))['count']
+    count = Message.objects.filter(conversation=conversation).exclude(sender=userId).exclude(readUsers__in=[userId]).aggregate(count=Count('id'))['count']
     return count
