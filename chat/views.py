@@ -1,7 +1,6 @@
 import re
 import json
 from datetime import datetime, timezone
-from typing import Dict, Any
 from django.http import JsonResponse, HttpResponse, HttpRequest
 from django.views.decorators.http import require_http_methods
 from account.models import User
@@ -12,6 +11,8 @@ from .models import Message, Conversation
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require
 from utils.utils_jwt import check_jwt_token
+from django.db.models import Count, F
+
 
 
 def check_username(value: str) -> bool:
@@ -25,10 +26,17 @@ def messages(request: HttpRequest) -> HttpResponse:
         body = json.loads(request.body.decode("utf-8"))
         conversationId = require(body, "conversationId", "int",
                             err_msg="Missing or error type of [conversationId]")
-        userId = require(body, "userId", "int",
+        userId = require(body, "userId", "string",
                             err_msg="Missing or error type of [userId]")
         content = require(body, "content", "string",
                             err_msg="Missing or error type of [content]")
+        if messageId in body:
+            messageId = require(body, "messageId", "int",
+                            err_msg="Missing or error type of [messageId]")
+            try:
+                replyTo = Message.objects.get(id=messageId)
+            except Message.DoesNotExist:
+                return request_failed(-2, "原消息不存在", 400)
 
         token = request.headers.get("Authorization")
         payload = check_jwt_token(token)
@@ -58,7 +66,10 @@ def messages(request: HttpRequest) -> HttpResponse:
         message = Message.objects.create(
             conversation=conversation, sender=sender, content=content
         )
+        if "replyTo" in locals():
+            message.replyTo = replyTo
 
+        # TODO: 考虑注销的人是否应该收到通知
         message.receivers.set(conversation.members.all())
 
         channelLayer = get_channel_layer()
@@ -74,7 +85,6 @@ def messages(request: HttpRequest) -> HttpResponse:
             (int(after) + 1) / 1000.0, tz=timezone.utc
         )
         limit: int = int(request.GET.get("limit", "100"))
-
         messagesQuery = Message.objects.filter(sendTime__gte=afterDatetime).order_by(
             "sendTime"
         )
@@ -91,7 +101,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         if userId:
             try:
                 user = User.objects.get(userId=userId)
-                messagesQuery = messagesQuery.filter(receivers=user)
+                messagesQuery = messagesQuery.filter(receivers=user).exclude(deleteMembers=user)
             except User.DoesNotExist:
                 return JsonResponse({"messages": [], "hasNext": False}, status=200)
         elif conversationId:
@@ -118,7 +128,7 @@ def messages(request: HttpRequest) -> HttpResponse:
 def conversations(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         body = json.loads(request.body.decode("utf-8"))
-        userId = require(body, "userId", "int",
+        userId = require(body, "userId", "string",
                             err_msg="Missing or error type of [userId]")
         conversationType = require(body, "type", "string",
                             err_msg="Missing or error type of [type]")
@@ -165,11 +175,11 @@ def conversations(request: HttpRequest) -> HttpResponse:
                     members
                 ):
                     # 找到了一个已存在的私人聊天，直接返回
-                    return request_success(conv.serilize())
+                    return request_success(conv.serilize(get_unread_count(userId, conv.id)))
 
         conversation = Conversation.objects.create(type=conversationType)
         conversation.members.set(members)
-        return request_success(conversation.serilize())
+        return request_success(conversation.serilize(0))
 
     elif request.method == "GET":
         userId: str = request.GET.get("userId")
@@ -184,5 +194,73 @@ def conversations(request: HttpRequest) -> HttpResponse:
         validConversations = Conversation.objects.filter(
             id__in=conversationIds
         ).prefetch_related("members")
-        response_data = [conv.serilize() for conv in validConversations]
+        response_data = [conv.serilize(get_unread_count(userId, conv.id)) for conv in validConversations]
         return request_success({"conversations": response_data})
+
+
+
+def delete_message(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        return BAD_METHOD
+
+    body = json.loads(request.body.decode("utf-8"))
+    userId = require(body, "userId", "string",
+                            err_msg="Missing or error type of [userId]")
+    messageId = require(body, "messageId", "int",
+                            err_msg="Missing or error type of [messageId]")
+
+    token = request.headers.get("Authorization")
+    payload = check_jwt_token(token)
+
+    # 验证 token
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+
+    try:
+        message = Message.objects.get(id=messageId)
+    except Message.DoesNotExist:
+        return request_failed(-2, "消息不存在", 400)
+    if message.deleteUsers.filter(userId=userId).exists():
+        return request_failed(-4, "消息已删除", 403)
+    message.deleteUsers.add(User.objects.get(userId=userId))
+    message.update(deleUsers=F('deleteUsers').append(User.objects.get(userId=userId)))
+
+    return request_success({"info": "删除成功"})
+
+def read_message(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        return BAD_METHOD
+
+    body = json.loads(request.body.decode("utf-8"))
+    userId = require(body, "userId", "string",  
+                            err_msg="Missing or error type of [userId]")
+    conversationId = require(body, "conversationId", "int",
+                            err_msg="Missing or error type of [conversationId]")
+    
+
+    token = request.headers.get("Authorization")
+    payload = check_jwt_token(token)
+
+    # 验证 token
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+    
+    try:
+        user = User.objects.get(userId=userId)
+    except User.DoesNotExist:
+        return request_failed(-2, "用户不存在", 400)
+
+    messages = Message.objects.filter(conversation=conversationId).exclude(readUsers__in=[user]).prefetch_related("conversation")
+    messages.update(readUsers=F('readUsers').append(user))
+
+    return request_success({"info": "已读成功"})
+
+def get_unread_count(userId: str, conversationId: int):
+
+    user = User.objects.get(userId=userId)
+    conversation = Conversation.objects.prefetch_related("members").get(
+        id=conversationId
+    )
+
+    count = Message.objects.filter(conversation=conversation).exclude(readUsers__in=[user]).aggregate(count=Count('id'))['count']
+    return count
