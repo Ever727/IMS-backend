@@ -37,7 +37,8 @@ class Message(models.Model):
          return {
             "id": self.id,
             "conversation": self.conversation.id,
-            "sender": self.sender.userId,
+            "sender": self.sender.userName,
+            "senderId":self.sender.userId,
             "content": self.content,
             "timestamp":  int(self.sendTime.timestamp() * 1_000),
             "avatar": self.sender.avatarUrl,
