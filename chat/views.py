@@ -205,7 +205,7 @@ def get_conversation(request: HttpRequest) -> HttpResponse:
         else:
             # TODO: 群聊头像
             avatar = None
-        response_data.append(conv.serilize(get_unread_count(userId, conv.id), avatar))
+        response_data.append(conv.serilize(avatar))
 
     return request_success({"conversations": response_data})
 
@@ -303,7 +303,19 @@ def read_message(request: HttpRequest) -> HttpResponse:
     return request_success({"info": "已读成功"})
 
 
-def get_unread_count(userId: str, conversationId: int):
+def get_unread_count(request: HttpRequest) -> HttpResponse:
+    if request.method != "GET":
+        return BAD_METHOD
+    
+    userId: str = request.GET.get("userId")
+    conversationId: int = request.GET.get("conversationId")
+    
+    token = request.headers.get("Authorization")
+    payload = check_jwt_token(token)
+
+    # 验证 token
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
 
     conversation = Conversation.objects.prefetch_related("members").get(
         id=conversationId,
@@ -315,4 +327,4 @@ def get_unread_count(userId: str, conversationId: int):
         .exclude(readUsers__in=[id])
         .aggregate(count=Count("id"))["count"]
     )
-    return count
+    return request_success({"count": count})

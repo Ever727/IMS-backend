@@ -12,13 +12,12 @@ class Conversation(models.Model):
     members = models.ManyToManyField(User, related_name='conversations')
     status = models.BooleanField(default=True)
 
-    def serilize(self, newMessageNum, avatarUrl):
+    def serilize(self, avatarUrl):
         return {
             "id": self.id,
             "type": self.type,
             "members": [user.userId for user in self.members.all()],
             "status": self.status,
-            "newMessage": newMessageNum,
             "avatarUrl": avatarUrl
 
         }
