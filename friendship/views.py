@@ -6,6 +6,8 @@ from utils.utils_time import timestamp_to_datetime, get_timestamp
 from .models import Friendship, FriendshipRequest  
 from account.models import User
 import json
+from chat.models import Conversation
+from django.db.models import Count
 
 # Create your views here.
 def add_friend(request:HttpRequest) -> HttpResponse:
@@ -18,7 +20,7 @@ def add_friend(request:HttpRequest) -> HttpResponse:
     userId = require(body,"userId", "string",
                      err_msg="Missing or error type of [userId]")
     searchId = require(body,"searchId", "string",
-                     err_msg="Missing or error type of [friendId]")
+                     err_msg="Missing or error type of [searchId]")
     message = require(body,"message", "string",
                      err_msg="Missing or error type of [message]")
     
@@ -76,9 +78,16 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
         friendship.status = False
         friendship.tag = ""
         friendship.save()
+
+        members = [User.objects.get(userId=userId).id, User.objects.get(userId=friendId).id]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        conversation.status = False
+        conversation.save()
     except Friendship.DoesNotExist:
         return request_failed(-1, "好友关系不存在", 404)
-    
+    except Conversation.DoesNotExist:
+        return request_failed(-1, "会话不存在", 404)
     
     return request_success({"message": "删除成功"})
 
@@ -120,12 +129,26 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
        friendship = Friendship.objects.get(userId=senderId, friendId=receiverId)
        friendship.status = True
        friendship.save()
+
+       members = [User.objects.get(userId=receiverId), User.objects.get(userId=senderId)]
+       conversation = Conversation.objects.filter( type='private_chat', members__in=members,
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+       
+       conversation.status = True
+       conversation.save()
+
     except Friendship.DoesNotExist:   
         friendship = Friendship(userId=receiverId, friendId=senderId)
         friendship.save()
 
         friendship = Friendship(userId=senderId, friendId=receiverId)
         friendship.save()
+
+        members = [User.objects.get(userId=receiverId), User.objects.get(userId=senderId)]
+        conversation = Conversation.objects.create(type="private_chat")
+        conversation.save()
+        conversation.members.set(members)
+        conversation.save()
     
     return request_success({"message": "接受成功"})
 
@@ -188,8 +211,6 @@ def get_friendshipRequest_list(request:HttpRequest, userId:str) -> HttpResponse:
                 "status": friendshipRequest.status,
             })
 
-
-     
     return request_success(requestList)
 
 
