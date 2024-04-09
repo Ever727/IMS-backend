@@ -7,7 +7,6 @@ class Friendship(models.Model):
     userId = models.CharField(max_length=16)
     friendId = models.CharField(max_length=16)
     tag = models.CharField(max_length=30,default='')
-    checkTime = models.FloatField(default=get_timestamp)
     status = models.BooleanField(default=True)
 
     class Meta:
