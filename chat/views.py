@@ -30,63 +30,11 @@ def messages(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST", "GET"])
 def conversations(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
-        body = json.loads(request.body.decode("utf-8"))
-        userId = require(body, "userId", "string",
-                            err_msg="Missing or error type of [userId]")
-        conversationType = require(body, "type", "string",
-                            err_msg="Missing or error type of [type]")
-        memberIds = body.get("members", [])
-
-        token = request.headers.get("Authorization")
-        payload = check_jwt_token(token)
-
-        # 验证 token
-        if payload is None or payload["userId"] != userId:
-            return request_failed(-3, "JWT 验证失败", 401)
-
-        # 检查用户名是否合法
-        members = []
-        for id in memberIds:
-            try:
-                user = User.objects.get(userId=id, isDeleted=False)
-                members.append(user)
-            except User.DoesNotExist:
-                return request_failed(-2, "用户不存在", 400)
-
-        if not members:
-            return request_failed(-2, "至少需要两个用户参与聊天", 400)
-
-        if conversationType == "private_chat":
-            return request_failed(-2, "私聊不能手动创建", 400)
-
-        conversation = Conversation.objects.create(type=conversationType)
-        conversation.members.set(members)
-        conversation.save()
-        # TODO: 群聊头像
-        return request_success(conversation.serilize(0, None))
+       return create_conversation(request)
     elif request.method == "GET":
-        userId: str = request.GET.get("userId")
-        token = request.headers.get("Authorization")
-        payload = check_jwt_token(token)
-
-        # 验证 token
-        if payload is None or payload["userId"] != userId:
-            return request_failed(-3, "JWT 验证失败", 401)
-
-        conversationIds = request.GET.getlist("id", [])
-        validConversations = Conversation.objects.filter(
-            id__in=conversationIds
-        ).prefetch_related("members")
-        response_data = []
-        for conv in validConversations:
-            if conv.type == "private_chat":
-                avatar = conv.members.exclude(userId=userId).first().avatarUrl
-            else:
-                # TODO: 群聊头像
-                avatar = None
-            response_data.append(conv.serilize(get_unread_count(userId, conv.id),avatar))       
-
-        return request_success({"conversations": response_data})
+        return get_conversation(request)
+    else:
+        return BAD_METHOD
 
 def send_message(request: HttpRequest) -> HttpResponse:
     body = json.loads(request.body.decode("utf-8"))
@@ -188,6 +136,65 @@ def get_message(request: HttpRequest) -> HttpResponse:
         hasNext = True
         messagesData = messagesData[:limit]
     return request_success({"messages": messagesData, "hasNext": hasNext})
+
+def create_conversation(request: HttpRequest) -> HttpResponse:
+    body = json.loads(request.body.decode("utf-8"))
+    userId = require(body, "userId", "string",
+                        err_msg="Missing or error type of [userId]")
+    conversationType = require(body, "type", "string",
+                        err_msg="Missing or error type of [type]")
+    memberIds = body.get("members", [])
+
+    token = request.headers.get("Authorization")
+    payload = check_jwt_token(token)
+
+    # 验证 token
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+
+    # 检查用户名是否合法
+    members = []
+    for id in memberIds:
+        try:
+            user = User.objects.get(userId=id, isDeleted=False)
+            members.append(user)
+        except User.DoesNotExist:
+            return request_failed(-2, "用户不存在", 400)
+
+    if not members:
+        return request_failed(-2, "至少需要两个用户参与聊天", 400)
+
+    if conversationType == "private_chat":
+        return request_failed(-2, "私聊不能手动创建", 400)
+
+    conversation = Conversation.objects.create(type=conversationType)
+    conversation.members.set(members)
+    # TODO: 群聊头像
+    return request_success(conversation.serilize(0, None))
+
+def get_conversation(request: HttpRequest) -> HttpResponse:
+    userId: str = request.GET.get("userId")
+    token = request.headers.get("Authorization")
+    payload = check_jwt_token(token)
+
+    # 验证 token
+    if payload is None or payload["userId"] != userId:
+        return request_failed(-3, "JWT 验证失败", 401)
+
+    conversationIds = request.GET.getlist("id", [])
+    validConversations = Conversation.objects.filter(
+        id__in=conversationIds
+    ).prefetch_related("members")
+    response_data = []
+    for conv in validConversations:
+        if conv.type == "private_chat":
+            avatar = conv.members.exclude(userId=userId).first().avatarUrl
+        else:
+            # TODO: 群聊头像
+            avatar = None
+        response_data.append(conv.serilize(get_unread_count(userId, conv.id),avatar))       
+
+    return request_success({"conversations": response_data})
 
 def delete_message(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
