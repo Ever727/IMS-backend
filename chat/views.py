@@ -101,7 +101,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         if userId:
             try:
                 user = User.objects.get(userId=userId)
-                messagesQuery = messagesQuery.filter(receivers=user).exclude(deleUsers=user)
+                messagesQuery = messagesQuery.filter(receivers=user).exclude(deleteUsers=user)
             except User.DoesNotExist:
                 return JsonResponse({"messages": [], "hasNext": False}, status=200)
         elif conversationId:
@@ -231,7 +231,7 @@ def delete_message(request: HttpRequest) -> HttpResponse:
     if message.deleteUsers.filter(userId=userId).exists():
         return request_failed(-4, "消息已删除", 403)
     message.deleteUsers.add(User.objects.get(userId=userId))
-    message.update(deleUsers=F('deleteUsers').append(User.objects.get(userId=userId)))
+    message.update(deleteUsers=F('deleteUsers').append(User.objects.get(userId=userId)))
 
     return request_success({"info": "删除成功"})
 
