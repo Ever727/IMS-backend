@@ -23,6 +23,13 @@ class User(models.Model):
     status = models.BooleanField(default=False)
     isDeleted = models.BooleanField(default=False)
 
+    def serialize(self):
+        return {
+            'userId': self.userId,
+            'userName': self.userName,
+            'avatarUrl': self.avatarUrl,
+            'isDeleted': self.isDeleted,
+        }
     class Meta:
         db_table = 'user'
         

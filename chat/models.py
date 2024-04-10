@@ -16,7 +16,7 @@ class Conversation(models.Model):
         return {
             "id": self.id,
             "type": self.type,
-            "members": [user.userId for user in self.members.all()],
+            "members": [user.serialize() for user in self.members.all()],
             "status": self.status,
             "avatarUrl": avatarUrl
 
