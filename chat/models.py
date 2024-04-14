@@ -29,11 +29,12 @@ class Message(models.Model):
     receivers = models.ManyToManyField(User, related_name='received_messages')
     sendTime = models.DateTimeField(auto_now_add=True, db_index=True)
     content = models.CharField(max_length=200,default='',blank=True,null=True)
-    replyTo = models.ManyToManyField('self', related_name='reply_message', symmetrical=False, blank=True)
-    readUsers = models.ManyToManyField(User, related_name='read_message', symmetrical=False, blank=True)
+    replyTo = models.ForeignKey('self', on_delete=models.CASCADE,related_name='reply_message', blank=True, default=None, null=True)
+    readUsers = models.ManyToManyField(User, related_name='read_message',  blank=True)
     deleteUsers = models.ManyToManyField(User, related_name='delete_message', symmetrical=False, blank=True)
 
     def serilize(self):
+         replyCount = Message.objects.filter(replyTo=self).count()
          return {
             "id": self.id,
             "conversation": self.conversation.id,
@@ -42,7 +43,8 @@ class Message(models.Model):
             "content": self.content,
             "timestamp":  int(self.sendTime.timestamp() * 1_000),
             "avatar": self.sender.avatarUrl,
-            "replyId": [message.id for message in self.replyTo.all()],
+            "replyId": self.replyTo.id if self.replyTo else None,
+            "replyCount": replyCount,
             "readList": [user.userName for user in self.readUsers.all()],
     }
 

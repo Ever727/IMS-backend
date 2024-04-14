@@ -41,9 +41,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
 def send_message(request: HttpRequest) -> HttpResponse:
     body = json.loads(request.body.decode("utf-8"))
     conversationId = require(
-        body,
-        "conversationId",
-        "int",
+        body, "conversationId", "int",
         err_msg="Missing or error type of [conversationId]",
     )
     userId = require(
@@ -56,7 +54,7 @@ def send_message(request: HttpRequest) -> HttpResponse:
     if replyId is not None:
         replyId = int(replyId)
         try:
-            replyTo = Message.objects.get(id=replyId)
+            replyTo = Message.objects.get(id=replyId, conversation__id=conversationId)
         except Message.DoesNotExist:
             return request_failed(-2, "原消息不存在", 400)
 
@@ -91,7 +89,7 @@ def send_message(request: HttpRequest) -> HttpResponse:
     if replyId is not None:
         message.replyTo = replyTo
     message.save()
-    # TODO: 考虑注销的人是否应该收到通知
+
     message.receivers.set(conversation.members.all())
 
     channelLayer = get_channel_layer()
@@ -209,6 +207,7 @@ def get_conversation(request: HttpRequest) -> HttpResponse:
 
     return request_success({"conversations": response_data})
 
+
 def get_conversation_ids(request: HttpRequest) -> HttpResponse:
     if request.method != "GET":
         return BAD_METHOD
@@ -299,6 +298,14 @@ def read_message(request: HttpRequest) -> HttpResponse:
         message.readUsers.add(id)
         message.sendTime = datetime.now()
         message.save()
+
+    
+    channelLayer = get_channel_layer()
+    conversation = Conversation.objects.prefetch_related("members").get(
+        id=conversationId,
+    )
+    for member in conversation.members.all():
+        async_to_sync(channelLayer.group_send)(member.userId, {"type": "notify"})    
 
     return request_success({"info": "已读成功"})
 
