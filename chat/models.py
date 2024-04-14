@@ -1,5 +1,4 @@
 from django.db import models
-from utils.utils_time import get_timestamp
 from account.models import User
 # Create your models here.
 
@@ -32,9 +31,9 @@ class Message(models.Model):
     replyTo = models.ForeignKey('self', on_delete=models.CASCADE,related_name='reply_message', blank=True, default=None, null=True)
     readUsers = models.ManyToManyField(User, related_name='read_message',  blank=True)
     deleteUsers = models.ManyToManyField(User, related_name='delete_message', symmetrical=False, blank=True)
+    replyCount = models.IntegerField(default=0)
 
     def serilize(self):
-         replyCount = Message.objects.filter(replyTo=self).count()
          return {
             "id": self.id,
             "conversation": self.conversation.id,
@@ -44,7 +43,7 @@ class Message(models.Model):
             "timestamp":  int(self.sendTime.timestamp() * 1_000),
             "avatar": self.sender.avatarUrl,
             "replyId": self.replyTo.id if self.replyTo else None,
-            "replyCount": replyCount,
+            "replyCount": self.replyCount,
             "readList": [user.userName for user in self.readUsers.all()],
             "deleteList": [user.userId for user in self.deleteUsers.all()],
     }

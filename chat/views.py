@@ -55,6 +55,8 @@ def send_message(request: HttpRequest) -> HttpResponse:
         replyId = int(replyId)
         try:
             replyTo = Message.objects.get(id=replyId, conversation__id=conversationId)
+            replyTo.replyCount += 1
+            replyTo.save()
         except Message.DoesNotExist:
             return request_failed(-2, "原消息不存在", 400)
 
