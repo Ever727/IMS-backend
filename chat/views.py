@@ -111,18 +111,22 @@ def get_message(request: HttpRequest) -> HttpResponse:
         return request_failed(-3, "JWT 验证失败", 401)
 
     # 验证 conversationId 和 userId 的合法性
-    try:
-        user = User.objects.get(userId=userId)
-        messagesQuery = messagesQuery.filter(receivers=user).exclude(
-            deleteUsers=user
-        )
-    except User.DoesNotExist:
-        return JsonResponse({"messages": [], "hasNext": False}, status=200)
-    try:
-        conversation = Conversation.objects.get(id=conversationId)
-        messagesQuery = messagesQuery.filter(conversation=conversation)
-    except Conversation.DoesNotExist:
-        return JsonResponse({"messages": [], "hasNext": False}, status=200)
+    if userId:
+        try:
+            user = User.objects.get(userId=userId)
+            messagesQuery = messagesQuery.filter(receivers=user).exclude(
+                deleteUsers=user
+            )
+        except User.DoesNotExist:
+            return JsonResponse({"messages": [], "hasNext": False}, status=200)
+    elif conversationId:
+        try:
+            conversation = Conversation.objects.get(id=conversationId)
+            messagesQuery = messagesQuery.filter(conversation=conversation)
+        except Conversation.DoesNotExist:
+            return JsonResponse({"messages": [], "hasNext": False}, status=200)
+    else:
+        return request_failed(-2, "用户或会话不存在", 400)
    
 
     messages = list(messagesQuery[: limit + 1])
