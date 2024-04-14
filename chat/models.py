@@ -1,5 +1,7 @@
 from django.db import models
 from account.models import User
+from datetime import datetime
+
 # Create your models here.
 
 class Conversation(models.Model):
@@ -26,7 +28,8 @@ class Message(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
     sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
     receivers = models.ManyToManyField(User, related_name='received_messages')
-    sendTime = models.DateTimeField(auto_now_add=True, db_index=True)
+    sendTime = models.DateTimeField(default=datetime.now, db_index=True)
+    updateTime = models.DateTimeField(default=datetime.now, db_index=True)
     content = models.CharField(max_length=200,default='',blank=True,null=True)
     replyTo = models.ForeignKey('self', on_delete=models.CASCADE,related_name='reply_message', blank=True, default=None, null=True)
     readUsers = models.ManyToManyField(User, related_name='read_message',  blank=True)
@@ -40,7 +43,8 @@ class Message(models.Model):
             "sender": self.sender.userName,
             "senderId":self.sender.userId,
             "content": self.content,
-            "timestamp":  int(self.sendTime.timestamp() * 1_000),
+            "timestamp":  int(self.updateTime.timestamp() * 1_000),
+            "sendTime": int(self.sendTime.timestamp() * 1_000),
             "avatar": self.sender.avatarUrl,
             "replyId": self.replyTo.id if self.replyTo else None,
             "replyCount": self.replyCount,

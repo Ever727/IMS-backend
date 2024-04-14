@@ -71,7 +71,10 @@ def send_message(request: HttpRequest) -> HttpResponse:
     with transaction.atomic():
         if replyId is not None:
             # 更新replyCount，避免加载整个Message对象
-            updated = Message.objects.filter(id=replyId, conversation=conversation).update(replyCount=F('replyCount') + 1)
+            updated = Message.objects.filter(id=replyId, conversation=conversation).update(
+                replyCount=F('replyCount') + 1,
+                updateTime=datetime.now()
+              )  # 更新 updateTime 字段为当前时间)
             if updated == 0:
                 return request_failed(-2, "原消息不存在", 400)
 
@@ -95,8 +98,8 @@ def get_message(request: HttpRequest) -> HttpResponse:
     after: str = request.GET.get("after", "0")
     afterDatetime = datetime.fromtimestamp((int(after) + 1) / 1000.0, tz=timezone.utc)
     limit: int = int(request.GET.get("limit", "100"))
-    messagesQuery = Message.objects.filter(sendTime__gte=afterDatetime).order_by(
-        "sendTime"
+    messagesQuery = Message.objects.filter(updateTime__gte=afterDatetime).order_by(
+        "updateTime"
     )
     messagesQuery = messagesQuery.prefetch_related("conversation")
 
@@ -280,7 +283,7 @@ def read_message(request: HttpRequest) -> HttpResponse:
     
     for message in messages:
         message.readUsers.add(id)
-        message.sendTime = datetime.now()
+        message.updateTime = datetime.now()
         message.save()
 
     

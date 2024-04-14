@@ -169,6 +169,7 @@ class ChatTest(TestCase):
         self.assertEqual( Message.objects.filter(replyTo__id=reply_id).count(), 1)
         new_message = Message.objects.get(id=2)
         self.assertEqual(new_message.replyTo.id, reply_id)
+        self.assertNotEqual(new_message.sendTime, new_message.updateTime)
 
     def test_reply_message_not_exist(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
@@ -231,6 +232,7 @@ class ChatTest(TestCase):
             read_list = message.readUsers.all().values_list('userId', flat=True)
             self.assertEqual(len(read_list), 1)
             self.assertEqual(read_list[0], self.data2['userId'])
+            self.assertNotEqual(message.sendTime, message.updateTime)
                  
     def test_delete_message(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
