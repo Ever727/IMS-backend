@@ -16,10 +16,15 @@ class ChatTest(TestCase):
             "userName": "bob",
             "password": "123456",
         }
+        self.data3 = {
+            "userId": "carol",
+            "userName": "carol",
+            "password": "123456",
+        }
         self.content_type = 'application/json'
         self.registerUrl = '/register/'
         self.loginUrl = '/login/'
-        for data in [self.data1, self.data2]:
+        for data in [self.data1, self.data2, self.data3]:
             register_data = data.copy()
             register_data['password'] = make_password('123456')
             User.objects.create(**register_data)
@@ -65,6 +70,26 @@ class ChatTest(TestCase):
         conversation = Conversation.objects.get(id=1)
         self.assertFalse(conversation.status)
 
+    def test_get_conversation_ids(self):
+        
+        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        token1, token3 = self.create_friendship_for_test(self.data1, self.data3)
+       
+
+        response = self.client.get(f'/chat/get_conversation_ids/?userId={self.data1["userId"]}', HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['conversationIds'], [1,2])
+
+    def test_get_conversations(self):
+        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        self.create_friendship_for_test(self.data1, self.data3)
+        response = self.client.get(f'/chat/get_conversation_ids/?userId={self.data1["userId"]}', HTTP_AUTHORIZATION=token1, content_type='application/json')
+
+        conversation_ids = response.json()['conversationIds']
+        response = self.client.get(f'/chat/conversations/?userId={self.data1["userId"]}&id=1&id=2', HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()['conversations']), 2)
+ 
     def test_send_message(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
         self.assertEqual(Message.objects.count(), 1)
