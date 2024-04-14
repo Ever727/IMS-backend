@@ -52,7 +52,7 @@ class ChatTest(TestCase):
     
 
     def test_create_private_conversation(self):
-        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        self.create_friendship_for_test(self.data1, self.data2)
         self.assertEqual(Conversation.objects.count(), 1)
         conversation = Conversation.objects.get(id=1)
         memberIds = list(conversation.members.all().values_list('userId', flat=True))
@@ -75,7 +75,6 @@ class ChatTest(TestCase):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
         token1, token3 = self.create_friendship_for_test(self.data1, self.data3)
        
-
         response = self.client.get(f'/chat/get_conversation_ids/?userId={self.data1["userId"]}', HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['conversationIds'], [1,2])
@@ -83,9 +82,7 @@ class ChatTest(TestCase):
     def test_get_conversations(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
         self.create_friendship_for_test(self.data1, self.data3)
-        response = self.client.get(f'/chat/get_conversation_ids/?userId={self.data1["userId"]}', HTTP_AUTHORIZATION=token1, content_type='application/json')
 
-        conversation_ids = response.json()['conversationIds']
         response = self.client.get(f'/chat/conversations/?userId={self.data1["userId"]}&id=1&id=2', HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()['conversations']), 2)
@@ -107,6 +104,24 @@ class ChatTest(TestCase):
         self.assertEqual(response.json()['content'], message_data['content'])
         self.assertEqual(response.json()['senderId'], message_data['userId'])
         self.assertEqual(response.json()['conversation'], message_data['conversationId'])
+
+    def test_send_message_invalid_conversation(self):
+        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        delete_data = {
+            "userId": self.data1['userId'],
+            "friendId": self.data2['userId']
+        }
+        self.client.post('/friends/delete_friend/', data=delete_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
+        conversation_id = 1
+        message_data = {
+            "userId": self.data1['userId'],
+            "conversationId": conversation_id,
+            "content": "send a message to a deleted conversation"
+        }
+        response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['info'], '会话不存在')
+        self.assertEqual(response.json()['code'], -2)
 
     def test_get_messages(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
@@ -154,6 +169,36 @@ class ChatTest(TestCase):
         self.assertEqual( Message.objects.filter(replyTo__id=reply_id).count(), 1)
         new_message = Message.objects.get(id=2)
         self.assertEqual(new_message.replyTo.id, reply_id)
+
+    def test_reply_message_not_exist(self):
+        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        conversation_id = 1
+        reply_id = 100
+        message_data = {
+            "userId": self.data1['userId'],
+            "conversationId": conversation_id,
+            "content": "reply message",
+            "replyId": reply_id
+        }
+        response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['info'], '原消息不存在')
+        self.assertEqual(response.json()['code'], -2)
+      
+    def test_reply_message_multi_times(self):
+        token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
+        conversation_id = 1
+        reply_id = 1
+        message_data = {
+            "userId": self.data1['userId'],
+            "conversationId": conversation_id,
+            "content": "reply message 1",
+            "replyId": reply_id
+        }
+        for _ in range(10):
+            message_data['content'] = "reply message"
+            self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual( Message.objects.filter(replyTo__id=reply_id).count(), 10)
 
     def test_read_message(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
