@@ -46,6 +46,7 @@ class Message(models.Model):
             "replyId": self.replyTo.id if self.replyTo else None,
             "replyCount": replyCount,
             "readList": [user.userName for user in self.readUsers.all()],
+            "deleteList": [user.userId for user in self.deleteUsers.all()],
     }
 
     class Meta:
