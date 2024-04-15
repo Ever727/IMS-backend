@@ -2,6 +2,8 @@ from django.test import TestCase
 from account.models import User
 from django.contrib.auth.hashers import make_password
 from friendship.models import Friendship,FriendshipRequest
+from chat.models import Conversation
+from django.db.models import Count
 
 # Create your tests here.
 class FriendshipTestCase(TestCase):
@@ -77,7 +79,6 @@ class FriendshipTestCase(TestCase):
         self.assertFalse(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data1["userId"]).exists())
         self.assertFalse(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data1["userId"]).exists())
 
-
     def test_add_friend_frenquently(self):
 
         token = self.login_for_test(self.data1)
@@ -117,6 +118,10 @@ class FriendshipTestCase(TestCase):
         self.assertEqual(friendshipRequest.status, True)
         self.assertTrue(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data2["userId"]).exists())
         self.assertTrue(Friendship.objects.filter(userId=self.data2["userId"], friendId=self.data1["userId"]).exists())
+        members = [self.user1, self.user2]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,status=True 
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        self.assertIsNotNone(conversation)
     
     def test_delete_friend(self):
         # add friend
@@ -148,6 +153,11 @@ class FriendshipTestCase(TestCase):
         self.assertFalse(friendship.status)
         friendship = Friendship.objects.get(userId=self.data2["userId"], friendId=self.data1["userId"])
         self.assertFalse(friendship.status)
+        members = [self.user1, self.user2]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,status=False 
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        self.assertIsNotNone(conversation)
+        
 
     def test_get_empty_friends_list(self):
         token = self.login_for_test(self.data1)

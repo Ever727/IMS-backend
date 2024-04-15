@@ -27,6 +27,8 @@ def request_success(data):
             "code": -1,
             "info": "Invalid data type"
         })
+    
+
 
 def return_field(obj_dict, field_list):
     for field in field_list:
