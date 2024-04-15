@@ -3,6 +3,7 @@ from utils.utils_time import get_timestamp
 from utils.constants import user_default_avatarUrl
 
 
+
 # Create your models here.
 class User(models.Model):
     # userId: str，唯一主键
