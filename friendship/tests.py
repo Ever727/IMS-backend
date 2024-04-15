@@ -2,6 +2,8 @@ from django.test import TestCase
 from account.models import User
 from django.contrib.auth.hashers import make_password
 from friendship.models import Friendship,FriendshipRequest
+from chat.models import Conversation
+from django.db.models import Count
 
 # Create your tests here.
 class FriendshipTestCase(TestCase):
@@ -77,7 +79,6 @@ class FriendshipTestCase(TestCase):
         self.assertFalse(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data1["userId"]).exists())
         self.assertFalse(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data1["userId"]).exists())
 
-
     def test_add_friend_frenquently(self):
 
         token = self.login_for_test(self.data1)
@@ -117,6 +118,10 @@ class FriendshipTestCase(TestCase):
         self.assertEqual(friendshipRequest.status, True)
         self.assertTrue(Friendship.objects.filter(userId=self.data1["userId"], friendId=self.data2["userId"]).exists())
         self.assertTrue(Friendship.objects.filter(userId=self.data2["userId"], friendId=self.data1["userId"]).exists())
+        members = [self.user1, self.user2]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,status=True 
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        self.assertIsNotNone(conversation)
     
     def test_delete_friend(self):
         # add friend
@@ -148,6 +153,11 @@ class FriendshipTestCase(TestCase):
         self.assertFalse(friendship.status)
         friendship = Friendship.objects.get(userId=self.data2["userId"], friendId=self.data1["userId"])
         self.assertFalse(friendship.status)
+        members = [self.user1, self.user2]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,status=False 
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        self.assertIsNotNone(conversation)
+        
 
     def test_get_empty_friends_list(self):
         token = self.login_for_test(self.data1)
@@ -260,3 +270,40 @@ class FriendshipTestCase(TestCase):
         self.assertTrue(response.json()['deleteStatus'])
         self.assertFalse(response.json()['friendshipStatus'])
         
+    def test_add_tag(self):
+        token = self.login_for_test(self.data1)
+        add_data = {
+            "userId": self.data1["userId"],
+            "searchId":self.data2["userId"],
+            "message": "hello world"
+            }
+        self.add_friend_for_test(token,add_data)
+        newToken = self.login_for_test(self.data2)
+        accept_data = {
+            "senderId": self.data1["userId"],
+            "receiverId": self.data2["userId"],
+        }
+        self.accept_friend_for_test(newToken,accept_data)
+        tag_data = {
+            "userId": self.data1["userId"],
+            "friendId": self.data2["userId"],
+            "tag": "Hola"
+        }
+        response = self.client.post('/friends/add_tag/',data=tag_data, HTTP_AUTHORIZATION=token,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['message'], 'tag添加成功')
+        friendship = Friendship.objects.get(userId=self.data1["userId"], friendId=self.data2["userId"])
+        self.assertEqual(friendship.tag, 'Hola')
+
+        tag_data = {
+            "userId": self.data2["userId"],
+            "friendId": self.data1["userId"],
+            "tag": "Adiós"
+        }
+        response = self.client.post('/friends/add_tag/',data=tag_data, HTTP_AUTHORIZATION=newToken,content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['message'], 'tag添加成功')
+        friendship = Friendship.objects.get(userId=self.data2["userId"], friendId=self.data1["userId"])
+        self.assertEqual(friendship.tag, 'Adiós')

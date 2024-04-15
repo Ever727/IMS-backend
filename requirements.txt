@@ -2,7 +2,9 @@ django==4.1.3
 
 django-cors-headers
 uwsgi  
-
+channels==4.0.0
+daphne==4.1.0
+channels-redis
 
 pytest
 pytest-django
