@@ -52,6 +52,10 @@ def add_friend(request:HttpRequest) -> HttpResponse:
         
     friendshipRequest = FriendshipRequest(senderId=userId, receiverId=searchId, message=message)
     friendshipRequest.save()
+    
+    channelLayer = get_channel_layer()
+    async_to_sync(channelLayer.group_send)(
+        searchId, {"type": "friend_request", "message":  friendshipRequest.serialize()})
     return request_success({"message": "成功发送请求"})
 
 
@@ -63,9 +67,9 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
     token = request.headers.get('Authorization')
     payload = check_jwt_token(token)
     userId = require(body, "userId", "string",
-                     err_msg="Missing or error type of [userId]")
+                    err_msg="Missing or error type of [userId]")
     friendId = require(body, "friendId", "string",
-                     err_msg="Missing or error type of [friendId]")
+                    err_msg="Missing or error type of [friendId]")
     
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)

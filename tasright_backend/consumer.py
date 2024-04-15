@@ -22,3 +22,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # 向指定用户组发送 notification
     async def notify(self, event) -> None:
         await self.send(text_data=json.dumps({'type': 'notify'}))
+
+    async def friend_request(self, event):
+        # 处理好友请求通知
+        await self.send(text_data=json.dumps({
+            'type': 'friend_request',
+            'data': event['message']
+        }))
