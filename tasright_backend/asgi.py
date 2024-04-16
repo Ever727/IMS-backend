@@ -26,4 +26,9 @@ application = ProtocolTypeRouter({
            path('chat/ws/', ChatConsumer.as_asgi()),
         ])
     ),
+    'websocket-secure': AuthMiddlewareStack(
+        URLRouter([
+            path('chat/ws/', ChatConsumer.as_asgi()),
+        ])
+    ),
 })
