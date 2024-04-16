@@ -76,7 +76,6 @@ def logout(request:HttpRequest):
         return request_failed(-3, "JWT 验证失败", 401)
     
     user = User.objects.get(userId=userId)
-    user.loginTime = get_timestamp()
     user.status = False
     user.save()
     return request_success(data={"url":"/login"})

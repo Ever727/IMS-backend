@@ -2,11 +2,15 @@ from django.http import HttpRequest, HttpResponse
 from utils.utils_request import request_failed, request_success,BAD_METHOD
 from utils.utils_require import require
 from utils.utils_jwt import check_jwt_token
-from utils.utils_time import timestamp_to_datetime, get_timestamp
+from utils.utils_time import  get_timestamp
 from .models import Friendship, FriendshipRequest  
 from account.models import User
 import json
-
+from chat.models import Conversation
+from django.db.models import Count
+from chat.models import Message
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 # Create your views here.
 def add_friend(request:HttpRequest) -> HttpResponse:
     if request.method != 'POST':
@@ -18,7 +22,7 @@ def add_friend(request:HttpRequest) -> HttpResponse:
     userId = require(body,"userId", "string",
                      err_msg="Missing or error type of [userId]")
     searchId = require(body,"searchId", "string",
-                     err_msg="Missing or error type of [friendId]")
+                     err_msg="Missing or error type of [searchId]")
     message = require(body,"message", "string",
                      err_msg="Missing or error type of [message]")
     
@@ -48,6 +52,10 @@ def add_friend(request:HttpRequest) -> HttpResponse:
         
     friendshipRequest = FriendshipRequest(senderId=userId, receiverId=searchId, message=message)
     friendshipRequest.save()
+    
+    channelLayer = get_channel_layer()
+    async_to_sync(channelLayer.group_send)(
+        searchId, {"type": "friend_request", "message":  friendshipRequest.serialize()})
     return request_success({"message": "成功发送请求"})
 
 
@@ -59,9 +67,9 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
     token = request.headers.get('Authorization')
     payload = check_jwt_token(token)
     userId = require(body, "userId", "string",
-                     err_msg="Missing or error type of [userId]")
+                    err_msg="Missing or error type of [userId]")
     friendId = require(body, "friendId", "string",
-                     err_msg="Missing or error type of [friendId]")
+                    err_msg="Missing or error type of [friendId]")
     
     if payload is None or payload["userId"] != userId:
         return request_failed(-3, "JWT 验证失败", 401)
@@ -69,14 +77,23 @@ def delete_friend(request:HttpRequest) -> HttpResponse:
     try:
         friendship = Friendship.objects.get(userId=userId, friendId=friendId,status=True)
         friendship.status = False
+        friendship.tag = ""
         friendship.save()
 
         friendship = Friendship.objects.get(userId=friendId, friendId=userId,status=True)
         friendship.status = False
+        friendship.tag = ""
         friendship.save()
+
+        members = [User.objects.get(userId=userId).id, User.objects.get(userId=friendId).id]
+        conversation = Conversation.objects.filter( type='private_chat', members__in=members,
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+        conversation.status = False
+        conversation.save()
     except Friendship.DoesNotExist:
         return request_failed(-1, "好友关系不存在", 404)
-    
+    except Conversation.DoesNotExist:
+        return request_failed(-1, "会话不存在", 404)
     
     return request_success({"message": "删除成功"})
 
@@ -118,13 +135,38 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
        friendship = Friendship.objects.get(userId=senderId, friendId=receiverId)
        friendship.status = True
        friendship.save()
+
+       members = [User.objects.get(userId=receiverId), User.objects.get(userId=senderId)]
+       conversation = Conversation.objects.filter( type='private_chat', members__in=members,
+            ).annotate(num_members=Count('members')).filter(num_members=2).first()
+       
+       
+       conversation.status = True
+       conversation.save()
+
     except Friendship.DoesNotExist:   
         friendship = Friendship(userId=receiverId, friendId=senderId)
         friendship.save()
 
         friendship = Friendship(userId=senderId, friendId=receiverId)
         friendship.save()
-    
+
+        members = [User.objects.get(userId=receiverId), User.objects.get(userId=senderId)]
+        conversation = Conversation.objects.create(type="private_chat")
+        conversation.save()
+        conversation.members.set(members)
+        conversation.save()
+
+    sender = User.objects.get(userId=senderId)
+    message = Message.objects.create(
+            conversation=conversation, sender=sender, content="我们已经成为好友了"
+        )
+
+    message.receivers.set(conversation.members.all())
+
+    channelLayer = get_channel_layer()
+    for member in conversation.members.all():
+        async_to_sync(channelLayer.group_send)(member.userId, {"type": "notify"})        
     return request_success({"message": "接受成功"})
 
 
@@ -139,19 +181,18 @@ def get_friend_list(request:HttpRequest, userId:str) -> HttpResponse:
         return request_failed(-3, "JWT 验证失败", 401)
     
 
-  # 获取好友ID和对应的tag，然后转换为字典以便快速查找
-    friendships = Friendship.objects.filter(
-        userId=userId,
-        status=True
-    ).order_by("friendId").values_list("friendId", "tag")
-    friendships_dict = dict(friendships)
+    friendships = Friendship.objects.filter(userId=userId, status=True)
+    friendList = [friendship.serialize() for friendship in friendships]
 
+<<<<<<< HEAD
     # 根据friendIds获取用户信息，并直接在查询集上迭代以提高效率
     friendList = []
     users = User.objects.filter(userId__in=friendships_dict.keys()).values("userId", "userName", "avatarUrl", "isDeleted")
     for user in users:
         user['tag'] = friendships_dict.get(user['userId'])
         friendList.append(user)
+=======
+>>>>>>> 2d8b087c4df9affe9366f59d27bf4b2a93c54705
     return request_success(friendList)
 
 
@@ -168,26 +209,8 @@ def get_friendshipRequest_list(request:HttpRequest, userId:str) -> HttpResponse:
         return request_failed(-3, "JWT 验证失败", 401)
     
     friendshipRequests = FriendshipRequest.objects.filter(receiverId=userId).order_by("-sendTime")[:30]
+    requestList = [friendshipRequest.serialize() for friendshipRequest in friendshipRequests]
 
-    senderIds = friendshipRequests.values_list('senderId', flat=True)
-    sendersInfo = User.objects.filter(userId__in=senderIds).values("userId", "userName", "avatarUrl")
-    senderDict = {sender['userId']: sender for sender in sendersInfo}
-
-    requestList = []
-    for friendshipRequest in friendshipRequests:
-        sender = senderDict.get(friendshipRequest.senderId)
-        if sender:
-            requestList.append({
-                "id": sender["userId"],
-                "name": sender["userName"],
-                "avatarUrl": sender["avatarUrl"],
-                "message": friendshipRequest.message,
-                "sendTime": timestamp_to_datetime(friendshipRequest.sendTime),
-                "status": friendshipRequest.status,
-            })
-
-
-     
     return request_success(requestList)
 
 
