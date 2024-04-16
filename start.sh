@@ -3,7 +3,7 @@ python3 manage.py makemigrations account friendship chat
 python3 manage.py migrate
 
 # Run with uWSGI
-uvicorn tasright_backend.wsgi:application \
+uvicorn tasright_backend.asgi:application \
     --host 0.0.0.0 \
     --port 80 \
     --workers 5 \
