@@ -1,3 +1,4 @@
+import os
 import datetime
 import hashlib
 import hmac
@@ -6,7 +7,14 @@ import json
 import base64
 from typing import Optional
 
-SALT = ("thgiRsATTAsRight").encode("utf-8")
+
+# 根据环境变量决定 SALT
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'development')
+if DJANGO_ENV == 'production':
+    SALT = ("thgiRsATTAsRight" + datetime.datetime.now().strftime("%Y%m%d%H%M")).encode("utf-8")
+else:
+    SALT = ("thgiRsATTAsRight").encode("utf-8")
+
 EXPIRE_IN_SECONDS = 60 * 60 * 24 * 1  # 1 day
 ALT_CHARS = "-_".encode("utf-8")
 

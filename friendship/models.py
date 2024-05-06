@@ -6,8 +6,8 @@ from utils.utils_time import timestamp_to_datetime
 # Create your models here.
 class Friendship(models.Model):
     id = models.AutoField(primary_key=True)
-    userId = models.CharField(max_length=16)
-    friendId = models.CharField(max_length=16)
+    userId = models.CharField(max_length=16, db_index=True)
+    friendId = models.CharField(max_length=16, db_index=True)
     tag = models.CharField(max_length=30,default='')
     status = models.BooleanField(default=True)
 
@@ -21,8 +21,8 @@ class Friendship(models.Model):
 
 class FriendshipRequest(models.Model):
     id = models.AutoField(primary_key=True)
-    senderId = models.CharField(max_length=16)
-    receiverId = models.CharField(max_length=16)
+    senderId = models.CharField(max_length=16, db_index=True)
+    receiverId = models.CharField(max_length=16, db_index=True)
     sendTime = models.FloatField(default=get_timestamp)
     message = models.CharField(max_length=200)
     status = models.IntegerField(default=0)
