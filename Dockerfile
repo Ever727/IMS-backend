@@ -2,6 +2,8 @@ FROM python:3.9
 
 ENV DEPLOY 1
 
+ENV DJANGO_ENV development
+
 WORKDIR /app
 
 COPY requirements.txt .

@@ -1,5 +1,4 @@
 from django.db import models
-from utils.utils_time import get_timestamp
 from utils.constants import user_default_avatarUrl
 
 
@@ -15,7 +14,7 @@ class User(models.Model):
     # status: bool，是否激活
     # isDeleted: bool 是否注销
     id = models.BigAutoField(primary_key=True)
-    userId = models.CharField(max_length=16, unique=True)
+    userId = models.CharField(max_length=16, unique=True, db_index=True)
     userName = models.CharField(max_length=16)
     password = models.CharField(max_length=100)
     email = models.EmailField(max_length=50, null=True)

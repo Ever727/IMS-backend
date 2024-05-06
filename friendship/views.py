@@ -6,6 +6,7 @@ from utils.utils_time import  get_timestamp
 from .models import Friendship, FriendshipRequest  
 from account.models import User
 import json
+from datetime import datetime, timezone
 from chat.models import Conversation
 from django.db.models import Count
 from chat.models import Message
@@ -157,16 +158,17 @@ def accept_friend(request:HttpRequest) -> HttpResponse:
         conversation.members.set(members)
         conversation.save()
 
-    sender = User.objects.get(userId=senderId)
+    receiver = User.objects.get(userId=receiverId)
     message = Message.objects.create(
-            conversation=conversation, sender=sender, content="我们已经成为好友了"
+            conversation=conversation, sender=receiver, content="我们已经成为好友了",
+            sendTime = datetime.now(tz=timezone.utc), updateTime = datetime.now(tz=timezone.utc)
         )
 
     message.receivers.set(conversation.members.all())
 
     channelLayer = get_channel_layer()
     for member in conversation.members.all():
-        async_to_sync(channelLayer.group_send)(member.userId, {"type": "notify"})        
+        async_to_sync(channelLayer.group_send)(member.userId, {"type": "friend_request"})        
     return request_success({"message": "接受成功"})
 
 
