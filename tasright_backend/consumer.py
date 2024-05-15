@@ -53,3 +53,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
         )
+
+    async def group_modify(self, event):
+        # 处理群组信息修改通知
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "group_modify",
+                }
+            )
+        )

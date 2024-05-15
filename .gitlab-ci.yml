@@ -19,7 +19,11 @@ build:
 unit-test:
   image: python:3.9
   stage: test
+  services:
+    - redis:alpine
   before_script:
+    - apt-get update && apt-get install -y redis-server
+    - service redis-server start
     - pip install -r requirements.txt
   script:
     - python manage.py makemigrations account friendship chat

@@ -59,7 +59,7 @@ class ChatTest(TestCase):
         token1 = self.login_for_test(self.data1)
         group_data = {
             "userId": self.data1['userId'],
-            "memberIds": [self.data1['userId'], self.data2['userId'], self.data3['userId']],
+            "memberIds": [self.data2['userId'], self.data3['userId']],
         }
         self.client.post('/chat/conversations/', data=group_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
 
@@ -146,7 +146,7 @@ class ChatTest(TestCase):
         }
         response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['info'], '会话不存在')
+        self.assertEqual(response.json()['info'], '会话已失效')
         self.assertEqual(response.json()['code'], -2)
 
     def test_get_messages(self):
@@ -175,7 +175,6 @@ class ChatTest(TestCase):
             self.assertEqual(message['conversation'], conversation_id)
             self.assertEqual(message['replyId'], None)
             self.assertEqual(message['readList'], [])
-            self.assertEqual(message['deleteList'], [])
             self.assertEqual(message['replyCount'],0)
 
     def test_reply_message(self):
@@ -294,7 +293,7 @@ class ChatTest(TestCase):
         }
         for i in range(10):
             message_data['content'] = f"Hello, I'm Alice {i}"
-            response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
+            self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
 
         response = self.client.get(f'/chat/get_unread_count/?userId={self.data1["userId"]}&conversationId={conversation_id}', HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 200)
@@ -305,7 +304,7 @@ class ChatTest(TestCase):
         token1 = self.login_for_test(self.data1)
         group_data = {
             "userId": self.data1['userId'],
-            "memberIds": [self.data1['userId'], self.data2['userId'], self.data3['userId']],
+            "memberIds": [self.data2['userId'], self.data3['userId']],
         }
         response = self.client.post('/chat/conversations/', data=group_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
         
@@ -718,4 +717,42 @@ class ChatTest(TestCase):
         response = self.client.get(f'/chat/group_requests/{self.data4["userId"]}/',HTTP_AUTHORIZATION=token4, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()['data']), 0)
-      
+
+    def test_update_group(self):
+        
+        # 群主更新
+        token1 = self.login_for_test(self.data1)
+        self.create_group_for_test()
+        update_data={
+            'userId':self.data1['userId'],
+            'groupId':1,
+            'newName':'new_group_name1',
+        }
+
+        response = self.client.post('/chat/update_group/', data=update_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        group = Conversation.objects.get(id=1)
+        self.assertEqual(group.groupName, 'new_group_name1')
+
+        # 无权限更新
+        token2 = self.login_for_test(self.data2)
+        update_data['userId'] = self.data2['userId']
+        response = self.client.post('/chat/update_group/', data=update_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['info'], '权限不足')
+        self.assertEqual(response.json()['code'], -4)
+
+        # 管理员更新
+        self.set_admin_for_test(self.data2, token1)
+        update_data['newName'] = 'new_group_name2'
+        response = self.client.post('/chat/update_group/', data=update_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        group = Conversation.objects.get(id=1)
+        self.assertEqual(group.groupName, 'new_group_name2')
+
+        # 更新字段为空
+        update_data['newName'] = ''
+        response = self.client.post('/chat/update_group/', data=update_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['info'], '群聊名称不能为空')
+        self.assertEqual(response.json()['code'], -4)
