@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'development')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,10 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-@77_zxbn32*o!7y7%oneygo760nt2e*aditxd6*=eek%9^ul1&'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = True if DJANGO_ENV == 'development' else False
 
 ALLOWED_HOSTS = [
-    '*'
+    '*' if DJANGO_ENV == 'development' else 'https://tasright-frontend-tasright.app.secoder.net/',
 ]
 
 
@@ -133,11 +135,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CHANNEL_LAYERS = {
     "default": {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        # "CONFIG": {
-        #     "hosts": [("127.0.0.1", 6379)],
-        # },
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
     },
+}
+
+# Session存储到Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',  # Redis 服务器地址和数据库编号
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 100,
+                'retry_on_timeout': True,
+            }
+        },
+        'KEY_PREFIX': 'chat'  # 可选：缓存键的前缀
+    }
 }
 
 CORS_ALLOW_ALL_ORIGINS = True

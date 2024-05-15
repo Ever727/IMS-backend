@@ -17,4 +17,5 @@ urlpatterns = [
     path('invite_member/', views.invite_member),
     path('group_requests/<str:userId>/', views.group_requests),
     path('accept_group_invitation/', views.accept_invitation),
+    path('update_group/', views.update_group),
 ]

@@ -6,8 +6,10 @@ import time
 import json
 import base64
 from typing import Optional
-
-
+from functools import wraps
+from utils.utils_request import request_failed
+from utils.utils_require import require
+import inspect
 # 根据环境变量决定 SALT
 DJANGO_ENV = os.getenv('DJANGO_ENV', 'development')
 if DJANGO_ENV == 'production':
@@ -15,7 +17,7 @@ if DJANGO_ENV == 'production':
 else:
     SALT = ("thgiRsATTAsRight").encode("utf-8")
 
-EXPIRE_IN_SECONDS = 60 * 60 * 24 * 1  # 1 day
+EXPIRE_IN_SECONDS = 60 * 60 * 24 * 1 * 60  # 1 day
 ALT_CHARS = "-_".encode("utf-8")
 
 
@@ -86,3 +88,26 @@ def check_jwt_token(token: str) -> Optional[dict]:
         return None
     
     return payload["data"]
+
+def jwt_required(f):
+    @wraps(f)
+    def decorated_function(request, *args, **kwargs):
+        token = request.headers.get("Authorization")
+        payload = check_jwt_token(token)
+
+        body = json.loads(request.body.decode("utf-8"))
+        # 获取被装饰函数的参数签名
+        signature = inspect.signature(f)
+        # 检查是否有名为 userId 的参数
+        if "userId" in signature.parameters:
+            userId = kwargs.get("userId")  # 从关键字参数中获取 userId
+        elif request.method == "POST":
+            userId = require(body, "userId",
+                         err_msg='Missing or error type of [userId]')
+        else:
+            return request_failed(-3, "JWT 验证失败", 401)
+    
+        if payload is None or payload["userId"] != userId:
+            return request_failed(-3, "JWT 验证失败", 401)
+        return f(request, *args, **kwargs)
+    return decorated_function

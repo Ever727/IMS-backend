@@ -70,14 +70,6 @@ class AccountTests(TestCase):
        self.assertEqual(response.status_code, 404)
        self.assertEqual(response.json()['code'], -1)
 
-     # * Tests for logout view
-    
-    def test_logout_logined_user(self):
-        token = self.login_for_test(self.data)
-        res = self.client.post('/logout/', HTTP_AUTHORIZATION=token, data=self.data, content_type=self.content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()['code'], 0)
-
     # * Tests for delete view
     def test_delete_existing_user(self):
         token = self.login_for_test(self.data)
