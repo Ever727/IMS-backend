@@ -127,9 +127,10 @@ class ChatTest(TestCase):
         response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Message.objects.count(), 2)
-        self.assertEqual(response.json()['content'], message_data['content'])
-        self.assertEqual(response.json()['senderId'], message_data['userId'])
-        self.assertEqual(response.json()['conversation'], message_data['conversationId'])
+        message = Message.objects.get(id=2)
+        self.assertEqual(message.content, message_data['content'])
+        self.assertEqual(message.sender.userId, message_data['userId'])
+        self.assertEqual(message.conversation.id, message_data['conversationId'])
 
     def test_send_message_invalid_conversation(self):
         token1, token2 = self.create_friendship_for_test(self.data1, self.data2)
@@ -190,10 +191,11 @@ class ChatTest(TestCase):
         response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token1, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Message.objects.count(), 2)
-        self.assertEqual(response.json()['content'], message_data['content'])
-        self.assertEqual(response.json()['senderId'], message_data['userId'])
-        self.assertEqual(response.json()['conversation'], message_data['conversationId'])
-        self.assertEqual(response.json()['replyId'], message_data['replyId'])
+        message = Message.objects.get(id=2)
+        self.assertEqual(message.content, message_data['content'])
+        self.assertEqual(message.sender.userId, message_data['userId'])
+        self.assertEqual(message.conversation.id, message_data['conversationId'])
+        self.assertEqual(message.replyTo.id, message_data['replyId'])
         self.assertEqual( Message.objects.filter(replyTo__id=reply_id).count(), 1)
         new_message = Message.objects.get(id=2)
         self.assertEqual(new_message.replyTo.id, reply_id)
@@ -244,7 +246,8 @@ class ChatTest(TestCase):
             message_data['content'] = f"Hello, I'm Alice {i}"
             response = self.client.post('/chat/messages/', data=message_data, HTTP_AUTHORIZATION=token2, content_type='application/json')
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json()['readList'], [])
+            message = Message.objects.get(id=i+2)
+            self.assertEqual(message.readUsers.count(), 0)
 
         read_data = {
             "userId": self.data1['userId'],

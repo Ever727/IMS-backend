@@ -43,7 +43,7 @@ def add_friend(request:HttpRequest) -> HttpResponse:
     try:
         # 避免频繁发送请求，这里采取限制，同一用户一定时间内只能发送一次请求，方便测试采用1s
         friendshipRequest = FriendshipRequest.objects.filter(senderId=userId, receiverId=searchId).latest("sendTime")
-        if get_timestamp() - friendshipRequest.sendTime < 1 :
+        if get_timestamp() - friendshipRequest.sendTime < 10 :
             return request_failed(-4, "发送申请过于频繁", 403)
         else:
             friendshipRequest.status = 2
