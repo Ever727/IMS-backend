@@ -182,7 +182,7 @@ def create_conversation(request: HttpRequest) -> HttpResponse:
             cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-    return request_success(conversation.serialize(group_default_avatarUrl))
+    return request_success(conversation.serialize(userId))
 
 
 def get_conversation(request: HttpRequest) -> HttpResponse:
@@ -203,11 +203,11 @@ def get_conversation(request: HttpRequest) -> HttpResponse:
     response_data = cache.get(cacheKey, [])
     if len(response_data) == 0:
         for conv in conversations:
+            otherUserId = None
             if conv.type == "private_chat":
-                avatar = conv.members.exclude(userId=userId).first().avatarUrl
-            else:
-                avatar = conv.avatarUrl
-            response_data.append(conv.serialize(avatar))
+                otherUserId = conv.members.exclude(userId=userId).values_list(
+                "userId", flat=True).first()
+            response_data.append(conv.serialize(userId, otherUserId))
         cache.set(cacheKey, response_data, 60*5)    
 
     return request_success({"conversations": response_data})
@@ -430,7 +430,7 @@ def set_host(request: HttpRequest) -> HttpResponse:
            cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})
 
 
 def set_admin(request: HttpRequest) -> HttpResponse:
@@ -852,4 +852,4 @@ def update_group(request: HttpRequest) -> HttpResponse:
             cache.set(cacheKey, convs, 60*5)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "group_modify"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})

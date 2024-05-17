@@ -60,20 +60,23 @@ class Conversation(models.Model):
         Notification, related_name="notificationList", blank=True
     )
 
-    def serialize(self, avatarUrl):
+    def serialize(self, excludeUserId=None, otherUserId = None):
+        members = self.members.all().exclude(userId=excludeUserId)
+        # 不包含userID对应的用户
         data = {
             "id": self.id,
             "type": self.type,
-            "members": [user.serialize() for user in self.members.all()],
+            "members": [user.serialize() for user in members.all()],
             "status": self.status,
-            "avatarUrl": avatarUrl,
             "updateTime": int(self.updateTime.timestamp() * 1_000),
         }
-       
-        if self.type == "group_chat":
+        if self.type == "private_chat":
+            data['otherUserId'] = otherUserId       
+        elif self.type == "group_chat":
             data['groupName'] = self.groupName
-            data['host'] = self.host.serialize() if self.host else None
-            data['adminList'] = [user.serialize() for user in self.admins.all()]
+            data['avatarUrl'] =self.avatarUrl
+            data['hostId'] = self.host.userId if self.host else None
+            data['adminIdList'] = list(self.admins.values_list('userId', flat=True))
             data['groupNotificationList'] = [
                 notification.serialize()
                 for notification in self.groupNotificationList.all()
