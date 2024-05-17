@@ -81,7 +81,6 @@ class Conversation(models.Model):
         return data
 
 
-
 class Message(models.Model):
     id = models.AutoField(primary_key=True)
     conversation = models.ForeignKey(
@@ -114,20 +113,17 @@ class Message(models.Model):
 
     def serialize(self):
     
-         # 缓存相关对象的属性，避免重复查询
-        sender_info = self.sender.serialize()
         readUsers = list(self.readUsers.values_list('userName', flat=True))
         deleteUsers = list(self.deleteUsers.values_list('userId', flat=True))
 
         return {
             "id": self.id,
             "conversation": self.conversation_id,
-            "sender": sender_info['userName'],
-            "senderId": sender_info['userId'],
+            "sender": self.sender.userName,
+            "senderId": self.sender.userId,
             "content": self.content,
             "timestamp": int(self.updateTime.timestamp() * 1_000),
             "sendTime": int(self.sendTime.timestamp() * 1_000),
-            "avatar": sender_info['avatarUrl'],
             "replyId": self.replyTo_id if self.replyTo_id else None,
             "replyCount": self.replyCount,
             "readList": readUsers,

@@ -201,8 +201,6 @@ def get_conversation(request: HttpRequest) -> HttpResponse:
     response_data = []
     cacheKey = f'conversations_{userId}'
     response_data = cache.get(cacheKey, [])
-    if len(response_data) != len(conversationIds):
-        response_data = []
     if len(response_data) == 0:
         for conv in conversations:
             if conv.type == "private_chat":
@@ -317,11 +315,6 @@ def get_unread_count(request: HttpRequest) -> HttpResponse:
 
     userId: str = request.GET.get("userId")
     conversationId: int = request.GET.get("conversationId")
-    token = request.headers.get("Authorization")
-    payload = check_jwt_token(token)
-    # 验证 token
-    if payload is None or payload["userId"] != userId:
-        return request_failed(-3, "JWT 验证失败", 401)
 
     cacheKey = f"unread_count_{conversationId}_{userId}"
     count = cache.get(cacheKey, -1)
