@@ -15,8 +15,7 @@ from django.db import transaction
 from django.db.models import F, Q
 from django.core.cache import cache
 
-# TODO: 判定conversation是否为群聊
-# TODO: 对注销的群成员进行处理
+
 # Create your views here.
 @require_http_methods(["POST", "GET"])
 def messages(request: HttpRequest) -> HttpResponse:
@@ -58,7 +57,6 @@ def send_message(request: HttpRequest) -> HttpResponse:
     if senderId is None:
         return request_failed(-2, "用户不存在或已注销", 400)
     try:
-        sender = User.objects.get(userId=userId, isDeleted=False)
         conversation = Conversation.objects.prefetch_related("members").get(
             id=conversationId, status=True, members__id=senderId
         )
@@ -86,7 +84,7 @@ def send_message(request: HttpRequest) -> HttpResponse:
 
         # 创建消息
         message = Message.objects.create(
-            conversation_id=conversation.id,
+            conversation_id=conversationId,
             sender_id=senderId,
             content=content,
             replyTo_id=replyId if replyId else None,
@@ -102,7 +100,7 @@ def send_message(request: HttpRequest) -> HttpResponse:
         cacheKey = f"unread_count_{conversation.id}_{member.userId}"
         if member.userId != userId and cache.get(cacheKey, -1) != -1:
             cache.set(cacheKey, cache.get(cacheKey, -1) + 1, 60*5)
-    return request_success(message.serialize())
+    return request_success({})
 
 
 def get_message(request: HttpRequest) -> HttpResponse:
@@ -336,7 +334,6 @@ def get_unread_count(request: HttpRequest) -> HttpResponse:
         )
         cache.set(cacheKey, count, 60*5)
 
-
     return request_success({"count": count})
 
 @jwt_required
@@ -389,7 +386,7 @@ def upload_notification(request: HttpRequest) -> HttpResponse:
            cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-    return request_success(newNotification.serialize())
+    return request_success({})
 
 
 def set_host(request: HttpRequest) -> HttpResponse:
@@ -497,7 +494,7 @@ def set_admin(request: HttpRequest) -> HttpResponse:
             cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})
 
 
 def remove_admin(request: HttpRequest) -> HttpResponse:
@@ -554,7 +551,7 @@ def remove_admin(request: HttpRequest) -> HttpResponse:
               cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})
 
 
 def kick_member(request: HttpRequest) -> HttpResponse:
@@ -615,7 +612,7 @@ def kick_member(request: HttpRequest) -> HttpResponse:
             cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "kick_member"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})
 
 @jwt_required
 def exit_group(request: HttpRequest) -> HttpResponse:
@@ -724,7 +721,7 @@ def invite_member(request: HttpRequest) -> HttpResponse:
             conversation.host.userId, {"type": "group_request"}
         )
 
-        return request_success(invitation.serialize())
+        return request_success({})
 
     elif user in conversation.admins.all() or user == conversation.host:
         for member in members:
@@ -740,7 +737,7 @@ def invite_member(request: HttpRequest) -> HttpResponse:
                 cache.delete(cacheKey)
             async_to_sync(channelLayer.group_send)(memberId, {"type": "notify"})
 
-        return request_success(conversation.serialize(conversation.avatarUrl))
+        return request_success({})
 
 
 def group_requests(request: HttpRequest, userId: str) -> HttpResponse:
@@ -810,7 +807,7 @@ def accept_invitation(request: HttpRequest) -> HttpResponse:
             cache.delete(cacheKey)
         async_to_sync(channelLayer.group_send)(memberId, {"type": "group_request"})
 
-    return request_success(conversation.serialize(conversation.avatarUrl))
+    return request_success({})
 
 @jwt_required
 def update_group(request: HttpRequest) -> HttpResponse:
